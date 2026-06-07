@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ticketing Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f4f0; color: #1a1a18; min-height: 100vh; padding-bottom: 40px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Top bar */
+  .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+  .page-title { font-size: 22px; font-weight: 500; display: flex; align-items: center; gap: 10px; }
+  .page-sub { font-size: 13px; color: #888780; margin-top: 3px; }
+  
+  /* Tombol Action */
+  .action-btns { display: flex; gap: 8px; align-items: center; }
+  .btn-new { background: #1a1a18; color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .btn-new:hover { opacity: 0.85; }
+  .btn-csv { background: #fff; color: #1a1a18; border: 0.5px solid #c8c7be; padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .btn-csv:hover { background: #f1efe8; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .stat-card { background: #eeede8; border-radius: 8px; padding: 14px 16px; }
+  .stat-label { font-size: 12px; color: #888780; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .stat-num { font-size: 28px; font-weight: 500; color: #1a1a18; }
+  .stat-num.amber { color: #854F0B; }
+  .stat-num.blue  { color: #185FA5; }
+  .stat-num.red   { color: #993C1D; }
+  .stat-num.green { color: #3B6D11; }
+
+  /* Filters */
+  .filters { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+  .filters select, .filters input {
+    font-size: 13px; padding: 8px 12px; border-radius: 8px;
+    border: 0.5px solid #c8c7be; background: #fff; color: #1a1a18; outline: none;
+  }
+  .filters input { min-width: 220px; flex-grow: 1; }
+  .filters select { min-width: 160px; }
+
+  /* Table */
+  .table-wrap { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  th { background: #f1efe8; padding: 10px 14px; text-align: left; font-weight: 500; font-size: 12px; color: #888780; border-bottom: 0.5px solid #d3d1c7; }
+  td { padding: 11px 14px; border-bottom: 0.5px solid #e8e7e2; color: #1a1a18; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafaf8; }
+  
+  .col-id       { width: 90px; }
+  .col-title    { width: auto; }
+  .col-reporter { width: 130px; }
+  .col-date     { width: 110px; }
+  .col-done-date { width: 120px; }
+  .col-priority { width: 95px; }
+  .col-status   { width: 115px; }
+  .col-action   { width: 50px; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .p-low         { background: #EAF3DE; color: #3B6D11; }
+  .p-normal      { background: #E6F1FB; color: #185FA5; }
+  .p-high        { background: #FAECE7; color: #993C1D; }
+  
+  .s-open        { background: #FAEEDA; color: #854F0B; }
+  .s-in-progress { background: #E6F1FB; color: #185FA5; }
+  .s-pending     { background: #EAF2FA; color: #2B6CB0; border: 0.5px dashed #BEE3F8; }
+  .s-resolved    { background: #EAF3DE; color: #3B6D11; }
+  .s-closed      { background: #F1EFE8; color: #5F5E5A; }
+
+  .ticket-id { font-family: monospace; font-size: 11px; color: #888780; }
+  .action-btn { background: none; border: none; cursor: pointer; color: #888780; font-size: 17px; padding: 4px 6px; border-radius: 6px; }
+  .action-btn:hover { color: #1a1a18; background: #f1efe8; }
+  .empty { text-align: center; padding: 2.5rem; color: #888780; font-size: 14px; }
+
+  /* Tampilan Footer RMDK IT */
+  .footer {
+    text-align: center;
+    font-size: 12px;
+    color: #888780;
+    margin-top: 2.5rem;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+  }
+
+  /* Modal */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; padding: 15px; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #fff; border-radius: 12px; border: 0.5px solid #c8c7be; padding: 1.5rem; width: 100%; max-width: 460px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+  .modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 1.25rem; color: #1a1a18; }
+  .field { margin-bottom: 13px; }
+  .field label { display: block; font-size: 12px; color: #888780; margin-bottom: 5px; }
+  .field input, .field select, .field textarea {
+    width: 100%; font-size: 13px; padding: 8px 10px;
+    border-radius: 8px; border: 0.5px solid #c8c7be;
+    background: #fff; color: #1a1a18; outline: none;
+  }
+  .field textarea { resize: vertical; min-height: 70px; font-family: system-ui, sans-serif; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1.25rem; }
+  .btn-cancel { background: none; border: 0.5px solid #c8c7be; padding: 7px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; color: #1a1a18; }
+  .btn-save   { background: #1a1a18; color: #fff; border: none; padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-danger { background: #E24B4A; color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+
+  .detail-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 0.5px solid #e8e7e2; font-size: 13px; gap: 12px; }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-row span:first-child { color: #888780; white-space: nowrap; }
+  .detail-row span:last-child { text-align: right; }
+
+  @media screen and (max-width: 768px) {
+    .container { padding: 1rem; }
+    .filters input { min-width: 100%; }
+    .filters select { flex-grow: 1; }
+    table thead { display: none; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    tr { background: white; margin-bottom: 12px; border-radius: 12px; border: 0.5px solid #d3d1c7; padding: 12px; }
+    td { text-align: right; padding: 8px 0; border-bottom: 0.5px solid #edf2f7; display: flex; justify-content: space-between; align-items: center; }
+    td:last-child { border-bottom: none; }
+    td::before { content: attr(data-label); font-weight: 500; color: #888780; font-size: 12px; }
+    .action-btn { background: #f1efe8; padding: 6px 12px; border-radius: 6px; width: 100%; text-align: center; display: flex; justify-content: center; gap: 5px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="top-bar">
+    <div>
+      <div class="page-title">
+        <i class="ti ti-ticket"></i> Ticketing Dashboard
+      </div>
+      <div class="page-sub">Kelola semua permintaan servis &amp; pekerjaan</div>
+    </div>
+    <div class="action-btns">
+      <button class="btn-csv" onclick="exportToCSV()">
+        <i class="ti ti-download"></i> Export CSV
+      </button>
+      <button class="btn-new" onclick="openNew()">
+        <i class="ti ti-plus"></i> Tiket baru
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-grid" id="stats"></div>
+
+  <div class="filters">
+    <i class="ti ti-filter" style="color:#888780; font-size:16px"></i>
+    <input type="text" id="q" placeholder="Cari tiket, pelapor..." oninput="render()" />
+    <select id="fStatus" onchange="render()">
+      <option value="">Semua status</option>
+      <option>open</option>
+      <option>in progress</option>
+      <option>pending</option>
+      <option>resolved</option>
+      <option>closed</option>
+    </select>
+    <select id="fPriority" onchange="render()">
+      <option value="">Semua prioritas</option>
+      <option>low</option>
+      <option>normal</option>
+      <option>high</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-id">No Tiket</th>
+          <th class="col-title">Judul permintaan</th>
+          <th class="col-reporter">Pelapor</th>
+          <th class="col-date">Tanggal Dibuat</th>
+          <th class="col-done-date">Tanggal Selesai</th>
+          <th class="col-priority">Prioritas</th>
+          <th class="col-status">Status</th>
+          <th class="col-action"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    © 2026 RMDK IT
+  </div>
+
+</div>
+
+<div class="modal-bg" id="newModal">
+  <div class="modal">
+    <h3>Buat tiket baru</h3>
+    <div class="field">
+      <label>Judul permintaan *</label>
+      <input id="nTitle" placeholder="contoh: Bongkar mesin printer Epson L3150" />
+    </div>
+    <div class="field">
+      <label>Deskripsi</label>
+      <textarea id="nDesc" placeholder="Detail permintaan..."></textarea>
+    </div>
+    <div class="field">
+      <label>Nama pelapor *</label>
+      <input id="nReporter" placeholder="Nama karyawan" />
+    </div>
+    <div class="field field-row">
+      <div>
+        <label>Prioritas</label>
+        <select id="nPriority">
+          <option>low</option>
+          <option selected>normal</option>
+          <option>high</option>
+        </select>
+      </div>
+      <div>
+        <label>Status awal</label>
+        <select id="nStatus">
+          <option selected>open</option>
+          <option>in progress</option>
+          <option>pending</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('newModal')">Batal</button>
+      <button class="btn-save" onclick="saveNew()">Simpan tiket</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="detailModal">
+  <div class="modal">
+    <h3 id="dTitle"></h3>
+    <div id="dBody"></div>
+    <div class="field" style="margin-top:14px">
+      <label>Ubah status</label>
+      <select id="dStatus" onchange="updateStatus()">
+        <option>open</option>
+        <option>in progress</option>
+        <option>pending</option>
+        <option>resolved</option>
+        <option>closed</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-danger" onclick="deleteTicket()">Hapus tiket</button>
+      <button class="btn-cancel" onclick="closeModal('detailModal')">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // =============================================
+  //  SUPABASE CONFIG
+  // =============================================
+  const SUPABASE_URL = 'https://rmjrzbwxpqlpcxvnlgtu.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtanJ6Ynd4cHFscGN4dm5sZ3R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NDYzNjMsImV4cCI6MjA5NjIyMjM2M30.e7SpjeVK5kHHjrJ8S0kecV5h728Y_lFXAYK9XCV2al8';
+  const TABLE = 'tickets';
+  const HEADERS = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Prefer': 'return=representation'
+  };
+
+  let tickets = [];
+  let currentId = null;
+  let nextNum = 1;
+
+  function pad(n) { return String(n).padStart(3, '0'); }
+
+  // Tampilkan loading di tabel
+  function showLoading() {
+    document.getElementById('tbody').innerHTML =
+      '<tr><td colspan="8" class="empty"><i class="ti ti-loader" style="font-size:24px;display:block;margin-bottom:8px"></i>Memuat data...</td></tr>';
+  }
+
+  // Ambil semua tiket dari Supabase
+  async function fetchTickets() {
+    showLoading();
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?order=created_at.desc`, {
+        headers: HEADERS
+      });
+      if (!res.ok) throw new Error('Gagal mengambil data');
+      tickets = await res.json();
+
+      // Hitung nextNum dari data yang ada
+      const idNums = tickets.map(t => parseInt((t.id || '').replace('TKT-', ''))).filter(n => !isNaN(n));
+      nextNum = idNums.length > 0 ? Math.max(...idNums) + 1 : 1;
+
+      render();
+    } catch (err) {
+      console.error(err);
+      document.getElementById('tbody').innerHTML =
+        '<tr><td colspan="8" class="empty"><i class="ti ti-wifi-off" style="font-size:24px;display:block;margin-bottom:8px"></i>Gagal memuat data. Periksa koneksi internet.</td></tr>';
+    }
+  }
+
+  // Simpan tiket baru ke Supabase
+  async function insertTicket(tiket) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify(tiket)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Gagal menyimpan tiket');
+    }
+    return await res.json();
+  }
+
+  // Update tiket di Supabase
+  async function updateTicket(id, data) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: HEADERS,
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Gagal update tiket');
+    }
+    return await res.json();
+  }
+
+  // Hapus tiket dari Supabase
+  async function removeTicket(id) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: HEADERS
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Gagal menghapus tiket');
+    }
+  }
+
+  function render() {
+    const q  = document.getElementById('q').value.toLowerCase();
+    const fs = document.getElementById('fStatus').value;
+    const fp = document.getElementById('fPriority').value;
+    const tbody = document.getElementById('tbody');
+
+    let rows = tickets.filter(t => {
+      const tId = t.id || t.ticketId || '';
+      const tTitle = t.title || t.judul || '';
+      const tReporter = t.reporter || t.pelapor || '';
+      const tStatus = t.status || '';
+      const tPriority = t.priority || t.prioritas || '';
+
+      return (!q || tTitle.toLowerCase().includes(q) || tReporter.toLowerCase().includes(q) || tId.toLowerCase().includes(q)) &&
+             (!fs || tStatus === fs) &&
+             (!fp || tPriority.toLowerCase() === fp.toLowerCase());
+    });
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty"><i class="ti ti-ticket-off" style="font-size:28px;display:block;margin-bottom:8px"></i>Tidak ada tiket ditemukan</td></tr>';
+    } else {
+      tbody.innerHTML = rows.map(t => {
+        const tId = t.id || t.ticketId || '-';
+        const tTitle = t.title || t.judul || '-';
+        const tReporter = t.reporter || t.pelapor || '-';
+        const tDate = t.date || t.tanggalDibuat || '-';
+        const tEndDate = t.end_date || t.endDate || t.tanggalSelesai || '-';
+        const tPriority = t.priority || t.prioritas || 'normal';
+        const tStatus = t.status || 'open';
+        
+        const cleanStatusClass = tStatus.toLowerCase().replace(/\s+/g, '-');
+
+        return `
+        <tr>
+          <td data-label="No Tiket"><span class="ticket-id">${tId}</span></td>
+          <td data-label="Judul permintaan" style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${tTitle}">${tTitle}</td>
+          <td data-label="Pelapor" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tReporter}</td>
+          <td data-label="Tanggal Dibuat" style="color:#888780">${tDate}</td>
+          <td data-label="Tanggal Selesai" style="color:#888780">${tEndDate}</td>
+          <td data-label="Prioritas"><span class="badge p-${tPriority.toLowerCase()}">${tPriority}</span></td>
+          <td data-label="Status"><span class="badge s-${cleanStatusClass}">${tStatus}</span></td>
+          <td data-label="Aksi"><button class="action-btn" onclick="openDetail('${tId}')" title="Lihat detail"><i class="ti ti-eye"></i></button></td>
+        </tr>`;
+      }).join('');
+    }
+    renderStats();
+  }
+
+  function renderStats() {
+    const c = { total: tickets.length, open: 0, progress: 0, pending: 0, high: 0, resolved: 0 };
+    tickets.forEach(t => {
+      const s = (t.status || '').toLowerCase();
+      const p = (t.priority || t.prioritas || '').toLowerCase();
+
+      if (s === 'open') c.open++;
+      if (s === 'in progress') c.progress++;
+      if (s === 'pending') c.pending++;
+      if (p === 'high' && (s === 'open' || s === 'in progress' || s === 'pending')) c.high++;
+      if (s === 'resolved' || s === 'closed') c.resolved++;
+    });
+    document.getElementById('stats').innerHTML = `
+      <div class="stat-card"><div class="stat-label"><i class="ti ti-list"></i>Total tiket</div><div class="stat-num">${c.total}</div></div>
+      <div class="stat-card"><div class="stat-label"><i class="ti ti-circle-dot"></i>Open</div><div class="stat-num amber">${c.open}</div></div>
+      <div class="stat-card"><div class="stat-label"><i class="ti ti-play"></i>In Progress</div><div class="stat-num blue">${c.progress}</div></div>
+      <div class="stat-card"><div class="stat-label"><i class="ti ti-alert-triangle"></i>High priority</div><div class="stat-num red">${c.high}</div></div>
+      <div class="stat-card"><div class="stat-label"><i class="ti ti-circle-check"></i>Resolved / Closed</div><div class="stat-num green">${c.resolved}</div></div>
+    `;
+  }
+
+  function openNew() { document.getElementById('newModal').classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+  async function saveNew() {
+    const title    = document.getElementById('nTitle').value.trim();
+    const reporter = document.getElementById('nReporter').value.trim();
+    if (!title || !reporter) { alert('Judul dan pelapor wajib diisi.'); return; }
+
+    const btnSave = document.querySelector('#newModal .btn-save');
+    btnSave.textContent = 'Menyimpan...';
+    btnSave.disabled = true;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const statusAwal = document.getElementById('nStatus').value;
+    const endDateAwal = (statusAwal === 'resolved' || statusAwal === 'closed') ? today : '-';
+
+    const tiketBaru = {
+      id: 'TKT-' + pad(nextNum++),
+      title,
+      desc: document.getElementById('nDesc').value.trim(),
+      reporter,
+      date: today,
+      end_date: endDateAwal,
+      priority: document.getElementById('nPriority').value,
+      status: statusAwal,
+    };
+
+    try {
+      await insertTicket(tiketBaru);
+      closeModal('newModal');
+      document.getElementById('nTitle').value    = '';
+      document.getElementById('nDesc').value     = '';
+      document.getElementById('nReporter').value = '';
+      await fetchTickets();
+    } catch (err) {
+      alert('Gagal menyimpan tiket: ' + err.message);
+    } finally {
+      btnSave.textContent = 'Simpan tiket';
+      btnSave.disabled = false;
+    }
+  }
+
+  function openDetail(id) {
+    const t = tickets.find(x => (x.id === id || x.ticketId === id));
+    if (!t) return;
+    currentId = id;
+    
+    const tId = t.id || t.ticketId || '-';
+    const tTitle = t.title || t.judul || '-';
+    const tDesc = t.desc || t.notes || '-';
+    const tReporter = t.reporter || t.pelapor || '-';
+    const tDate = t.date || t.tanggalDibuat || '-';
+    const tEndDate = t.end_date || t.endDate || t.tanggalSelesai || '-';
+    const tPriority = t.priority || t.prioritas || 'normal';
+    const tStatus = t.status || 'open';
+
+    document.getElementById('dTitle').textContent = tTitle;
+    document.getElementById('dBody').innerHTML = `
+      <div class="detail-row"><span>No Tiket</span><span class="ticket-id">${tId}</span></div>
+      <div class="detail-row"><span>Deskripsi</span><span>${tDesc}</span></div>
+      <div class="detail-row"><span>Pelapor</span><span>${tReporter}</span></div>
+      <div class="detail-row"><span>Tanggal Dibuat</span><span>${tDate}</span></div>
+      <div class="detail-row"><span>Tanggal Selesai</span><span>${tEndDate}</span></div>
+      <div class="detail-row"><span>Prioritas</span><span class="badge p-${tPriority.toLowerCase()}">${tPriority}</span></div>
+    `;
+    document.getElementById('dStatus').value = tStatus;
+    document.getElementById('detailModal').classList.add('open');
+  }
+
+  async function updateStatus() {
+    const t = tickets.find(x => (x.id === currentId || x.ticketId === currentId));
+    if (!t) return;
+
+    const statusBaru = document.getElementById('dStatus').value;
+    const today = new Date().toISOString().slice(0, 10);
+    const endDateBaru = (statusBaru === 'resolved' || statusBaru === 'closed') ? today : '-';
+
+    const btnUpdate = document.querySelector('#detailModal select#dStatus');
+    btnUpdate.disabled = true;
+
+    try {
+      await updateTicket(currentId, { status: statusBaru, end_date: endDateBaru });
+      await fetchTickets();
+      // Refresh detail modal dengan data terbaru
+      const updated = tickets.find(x => x.id === currentId);
+      if (updated) openDetail(currentId);
+    } catch (err) {
+      alert('Gagal update status: ' + err.message);
+    } finally {
+      btnUpdate.disabled = false;
+    }
+  }
+
+  async function deleteTicket() {
+    if (!confirm('Hapus tiket ini?')) return;
+    const btnDel = document.querySelector('#detailModal .btn-danger');
+    btnDel.textContent = 'Menghapus...';
+    btnDel.disabled = true;
+    try {
+      await removeTicket(currentId);
+      closeModal('detailModal');
+      await fetchTickets();
+    } catch (err) {
+      alert('Gagal menghapus tiket: ' + err.message);
+      btnDel.textContent = 'Hapus tiket';
+      btnDel.disabled = false;
+    }
+  }
+
+  function exportToCSV() {
+    if(tickets.length === 0) { alert('Tidak ada data untuk diexport!'); return; }
+    let csvContent = "\ufeffNo Tiket,Judul Permintaan,Pelapor,Tanggal Dibuat,Tanggal Selesai,Prioritas,Status,Deskripsi\n";
+    tickets.forEach(t => {
+      const tId = t.id || t.ticketId || '-';
+      const tTitle = t.title || t.judul || '-';
+      const tReporter = t.reporter || t.pelapor || '-';
+      const tDate = t.date || t.tanggalDibuat || '-';
+      const tEndDate = t.end_date || t.endDate || t.tanggalSelesai || '-';
+      const tPriority = t.priority || t.prioritas || 'normal';
+      const tStatus = t.status || 'open';
+      let cleanDesc = (t.desc || t.notes || '-').replace(/"/g, '""');
+      
+      csvContent += `"${tId}","${tTitle}","${tReporter}","${tDate}","${tEndDate}","${tPriority}","${tStatus}","${cleanDesc}"\n`;
+    });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Ticketing_Report.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // Jalankan pertama kali — ambil data dari Supabase
+  fetchTickets();
+</script>
+</body>
+</html>
