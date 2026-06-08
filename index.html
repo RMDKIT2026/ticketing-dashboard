@@ -294,12 +294,22 @@
       <div id="logForm" style="display:none">
         <textarea id="logMsg" placeholder="Tulis update / catatan pengerjaan..."></textarea>
         <div class="log-actions">
-          <div class="status-row">
-            <label>Ubah status:</label>
-            <select id="dStatus">
-              <option>open</option><option>in progress</option><option>pending</option>
-              <option>resolved</option><option>closed</option>
-            </select>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <div class="status-row">
+              <label>Status:</label>
+              <select id="dStatus">
+                <option>open</option><option>in progress</option><option>pending</option>
+                <option>resolved</option><option>closed</option>
+              </select>
+            </div>
+            <div class="status-row">
+              <label>Prioritas:</label>
+              <select id="dPriority">
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+              </select>
+            </div>
           </div>
           <button class="btn-save" id="btnSaveLog" onclick="saveLog()">
             <i class="ti ti-send" style="margin-right:4px"></i>Simpan update
@@ -603,8 +613,9 @@ async function openDetail(id) {
     <div class="detail-row"><span>Status</span><span class="badge s-${(t.status||'open').replace(/\s+/g,'-')}">${t.status}</span></div>`;
   document.getElementById('logForm').style.display         = isTechnician() ? 'block' : 'none';
   document.getElementById('btnDeleteTicket').style.display = isAdmin()       ? 'flex'  : 'none';
-  document.getElementById('dStatus').value = t.status;
-  document.getElementById('logMsg').value  = '';
+  document.getElementById('dStatus').value   = t.status;
+  document.getElementById('dPriority').value = (t.priority || 'normal').toLowerCase();
+  document.getElementById('logMsg').value    = '';
   document.getElementById('detailModal').classList.add('open');
   await fetchLogs(id);
 }
@@ -639,33 +650,48 @@ async function addLog(ticketId, message, role) {
 }
 
 async function saveLog() {
-  const msg       = document.getElementById('logMsg').value.trim();
-  const newStatus = document.getElementById('dStatus').value;
-  const t         = tickets.find(x => x.id === currentTicketId);
+  const msg         = document.getElementById('logMsg').value.trim();
+  const newStatus   = document.getElementById('dStatus').value;
+  const newPriority = document.getElementById('dPriority').value;
+  const t           = tickets.find(x => x.id === currentTicketId);
   if (!t) return;
   if (!msg) { alert('Tulis catatan terlebih dahulu.'); return; }
   const btn = document.getElementById('btnSaveLog');
   btn.textContent = 'Menyimpan...'; btn.disabled = true;
   try {
-    const today   = new Date().toISOString().slice(0,10);
-    const changed = newStatus !== t.status;
-    if (changed) {
+    const today           = new Date().toISOString().slice(0,10);
+    const statusChanged   = newStatus   !== t.status;
+    const priorityChanged = newPriority !== (t.priority||'normal').toLowerCase();
+
+    if (statusChanged || priorityChanged) {
+      const patch = {};
+      if (statusChanged)   { patch.status   = newStatus; patch.end_date = ['resolved','closed'].includes(newStatus) ? today : t.end_date||'-'; }
+      if (priorityChanged) { patch.priority = newPriority; }
       await sb(`tickets?id=eq.${encodeURIComponent(currentTicketId)}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: newStatus, end_date: ['resolved','closed'].includes(newStatus) ? today : t.end_date||'-' })
+        method: 'PATCH', body: JSON.stringify(patch)
       });
     }
-    const logMsg = changed ? `${msg} [Status: ${t.status} → ${newStatus}]` : msg;
+
+    // Susun pesan log dengan perubahan
+    let logMsg = msg;
+    const changes = [];
+    if (statusChanged)   changes.push(`Status: ${t.status} → ${newStatus}`);
+    if (priorityChanged) changes.push(`Prioritas: ${t.priority} → ${newPriority}`);
+    if (changes.length)  logMsg += ` [${changes.join(' | ')}]`;
+
     await addLog(currentTicketId, logMsg);
     document.getElementById('logMsg').value = '';
     await fetchTickets();
     await fetchLogs(currentTicketId);
-    // update detail badge
+
+    // Update badge di detail modal
     const updated = tickets.find(x => x.id === currentTicketId);
-    if (updated && changed) {
+    if (updated) {
       const rows = document.getElementById('dBody').querySelectorAll('.detail-row');
-      const last = rows[rows.length - 1];
-      if (last) last.querySelector('span:last-child').outerHTML =
+      // row prioritas = index 5, status = index 6
+      if (priorityChanged && rows[5]) rows[5].querySelector('span:last-child').outerHTML =
+        `<span class="badge p-${newPriority}">${newPriority}</span>`;
+      if (statusChanged && rows[6]) rows[6].querySelector('span:last-child').outerHTML =
         `<span class="badge s-${newStatus.replace(/\s+/g,'-')}">${newStatus}</span>`;
     }
   } catch (e) { alert('Gagal simpan: ' + e.message); }
