@@ -5,10 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Ticketing Dashboard</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: system-ui, sans-serif; background: #f5f4f0; color: #1a1a18; min-height: 100vh; padding-bottom: 40px; }
-  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .container { max-width: 1150px; margin: 0 auto; padding: 2rem 1.5rem; }
 
   /* AUTH */
   .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
@@ -26,6 +28,8 @@
   .btn-new:hover { opacity: 0.85; }
   .btn-blue   { background: #185FA5; color: #fff; border: none; padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
   .btn-blue:hover { opacity: 0.85; }
+  .btn-green  { background: #3B6D11; color: #fff; border: none; padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .btn-green:hover { opacity: 0.85; }
   .btn-csv    { background: #fff; color: #1a1a18; border: 0.5px solid #c8c7be; padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
   .btn-csv:hover { background: #f1efe8; }
   .btn-logout { background: none; color: #888780; border: 0.5px solid #c8c7be; padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
@@ -50,11 +54,22 @@
   .stat-num.red   { color: #993C1D; }
   .stat-num.green { color: #3B6D11; }
 
+  /* CHARTS */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 1.5rem; }
+  .chart-card { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; padding: 16px; }
+  .chart-title { font-size: 13px; font-weight: 500; color: #1a1a18; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .chart-wrap { position: relative; height: 180px; }
+  @media (max-width: 640px) { .charts-grid { grid-template-columns: 1fr; } }
+
   /* FILTERS */
   .filters { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
-  .filters select, .filters input { font-size: 13px; padding: 8px 12px; border-radius: 8px; border: 0.5px solid #c8c7be; background: #fff; color: #1a1a18; outline: none; }
-  .filters input { min-width: 220px; flex-grow: 1; }
-  .filters select { min-width: 160px; }
+  .filters select, .filters input[type=text] { font-size: 13px; padding: 8px 12px; border-radius: 8px; border: 0.5px solid #c8c7be; background: #fff; color: #1a1a18; outline: none; }
+  .filters input[type=text] { min-width: 200px; flex-grow: 1; }
+  .filters select { min-width: 150px; }
+  .filters input[type=date] { font-size: 13px; padding: 7px 10px; border-radius: 8px; border: 0.5px solid #c8c7be; background: #fff; color: #1a1a18; outline: none; }
+  .filter-date-group { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #888780; }
+  .btn-reset-filter { background: none; border: 0.5px solid #c8c7be; padding: 7px 10px; border-radius: 8px; font-size: 12px; cursor: pointer; color: #888780; }
+  .btn-reset-filter:hover { background: #f1efe8; }
 
   /* TABLE */
   .table-wrap { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; overflow: hidden; }
@@ -63,14 +78,14 @@
   td { padding: 11px 14px; border-bottom: 0.5px solid #e8e7e2; color: #1a1a18; vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: #fafaf8; }
-  .col-id       { width: 90px; }
+  .col-id       { width: 85px; }
   .col-title    { width: auto; }
-  .col-reporter { width: 130px; }
-  .col-date     { width: 110px; }
-  .col-done-date{ width: 120px; }
-  .col-priority { width: 95px; }
-  .col-status   { width: 115px; }
-  .col-action   { width: 50px; }
+  .col-cat      { width: 110px; }
+  .col-reporter { width: 120px; }
+  .col-date     { width: 100px; }
+  .col-priority { width: 88px; }
+  .col-status   { width: 108px; }
+  .col-action   { width: 46px; }
 
   /* BADGES */
   .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; white-space: nowrap; }
@@ -82,6 +97,7 @@
   .s-pending     { background: #EAF2FA; color: #2B6CB0; border: 0.5px dashed #BEE3F8; }
   .s-resolved    { background: #EAF3DE; color: #3B6D11; }
   .s-closed      { background: #F1EFE8; color: #5F5E5A; }
+  .cat-badge     { background: #F1EFE8; color: #5F5E5A; font-size: 11px; padding: 2px 8px; border-radius: 20px; }
 
   .ticket-id { font-family: monospace; font-size: 11px; color: #888780; }
   .action-btn { background: none; border: none; cursor: pointer; color: #888780; font-size: 17px; padding: 4px 6px; border-radius: 6px; }
@@ -92,8 +108,8 @@
   /* MODAL */
   .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; padding: 15px; }
   .modal-bg.open { display: flex; }
-  .modal { background: #fff; border-radius: 12px; border: 0.5px solid #c8c7be; padding: 1.5rem; width: 100%; max-width: 480px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-height: 92vh; overflow-y: auto; }
-  .modal-wide { max-width: 640px; }
+  .modal { background: #fff; border-radius: 12px; border: 0.5px solid #c8c7be; padding: 1.5rem; width: 100%; max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-height: 92vh; overflow-y: auto; }
+  .modal-wide { max-width: 660px; }
   .modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 1.25rem; color: #1a1a18; display: flex; align-items: center; gap: 8px; }
   .field { margin-bottom: 13px; }
   .field label { display: block; font-size: 12px; color: #888780; margin-bottom: 5px; }
@@ -104,19 +120,28 @@
   .btn-cancel { background: none; border: 0.5px solid #c8c7be; padding: 7px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; color: #1a1a18; }
   .btn-save   { background: #1a1a18; color: #fff; border: none; padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
   .btn-danger { background: #E24B4A; color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; }
-  .btn-sm     { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; }
+  .btn-sm     { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; display:inline-flex; align-items:center; gap:4px; }
   .btn-sm-blue   { background: #E6F1FB; color: #185FA5; }
   .btn-sm-danger { background: #FAECE7; color: #993C1D; }
+  .btn-sm-green  { background: #EAF3DE; color: #3B6D11; }
 
   .detail-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 0.5px solid #e8e7e2; font-size: 13px; gap: 12px; }
   .detail-row:last-child { border-bottom: none; }
   .detail-row span:first-child { color: #888780; white-space: nowrap; }
   .detail-row span:last-child { text-align: right; }
 
+  /* ATTACHMENT */
+  .attachment-preview { margin-top: 10px; }
+  .attachment-preview img { max-width: 100%; max-height: 200px; border-radius: 8px; border: 0.5px solid #d3d1c7; cursor: pointer; }
+  .upload-area { border: 1.5px dashed #c8c7be; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; color: #888780; font-size: 13px; transition: all 0.15s; }
+  .upload-area:hover { border-color: #1a1a18; color: #1a1a18; background: #fafaf8; }
+  .upload-area i { font-size: 24px; display: block; margin-bottom: 6px; }
+  .upload-progress { font-size: 12px; color: #185FA5; margin-top: 6px; display: none; }
+
   /* ACTIVITY LOG */
   .log-section { margin-top: 1.25rem; border-top: 0.5px solid #e8e7e2; padding-top: 1rem; }
   .log-title { font-size: 13px; font-weight: 500; color: #1a1a18; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-  .log-list { border-left: 2px solid #e8e7e2; padding-left: 16px; margin-bottom: 14px; max-height: 240px; overflow-y: auto; }
+  .log-list { border-left: 2px solid #e8e7e2; padding-left: 16px; margin-bottom: 14px; max-height: 220px; overflow-y: auto; }
   .log-item { position: relative; margin-bottom: 16px; }
   .log-item::before { content: ''; position: absolute; left: -21px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: #c8c7be; border: 2px solid #fff; }
   .log-item.system::before   { background: #888780; }
@@ -129,32 +154,39 @@
   .log-empty { font-size: 13px; color: #888780; text-align: center; padding: 1.2rem 0; }
   .log-form textarea { width: 100%; font-size: 13px; padding: 8px 10px; border-radius: 8px; border: 0.5px solid #c8c7be; background: #fff; color: #1a1a18; outline: none; resize: vertical; min-height: 64px; font-family: system-ui, sans-serif; margin-bottom: 10px; }
   .log-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-  .status-row { display: flex; align-items: center; gap: 8px; }
+  .status-row { display: flex; align-items: center; gap: 6px; }
   .status-row label { font-size: 12px; color: #888780; white-space: nowrap; }
-  .status-row select { font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 0.5px solid #c8c7be; background: #fff; color: #1a1a18; outline: none; }
+  .status-row select { font-size: 12px; padding: 5px 8px; border-radius: 8px; border: 0.5px solid #c8c7be; background: #fff; color: #1a1a18; outline: none; }
 
-  /* USER MANAGEMENT TABLE */
+  /* USER MANAGEMENT */
   .user-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .user-table th { background: #f1efe8; padding: 9px 12px; text-align: left; font-size: 12px; color: #888780; border-bottom: 0.5px solid #d3d1c7; }
   .user-table td { padding: 10px 12px; border-bottom: 0.5px solid #e8e7e2; vertical-align: middle; }
   .user-table tr:last-child td { border-bottom: none; }
-  .user-actions { display: flex; gap: 6px; }
-
-  /* ADD USER FORM inside user modal */
+  .user-actions { display: flex; gap: 6px; flex-wrap: wrap; }
   .add-user-box { background: #f9f8f5; border: 0.5px solid #e8e7e2; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
   .add-user-box h4 { font-size: 13px; font-weight: 500; margin-bottom: 10px; color: #1a1a18; }
+
+  /* CATEGORY MANAGEMENT */
+  .cat-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .cat-item { display: flex; align-items: center; gap: 6px; background: #f1efe8; border: 0.5px solid #d3d1c7; padding: 5px 10px; border-radius: 20px; font-size: 13px; }
+  .cat-item button { background: none; border: none; cursor: pointer; color: #993C1D; font-size: 14px; padding: 0; line-height: 1; }
 
   /* ALERT */
   .alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
   .alert-error   { background: #FAECE7; color: #993C1D; }
   .alert-success { background: #EAF3DE; color: #3B6D11; }
 
-  /* DIVIDER */
-  .divider { border: none; border-top: 0.5px solid #e8e7e2; margin: 1rem 0; }
+  /* TABS */
+  .tab-bar { display: flex; gap: 0; margin-bottom: 1rem; border-bottom: 0.5px solid #d3d1c7; }
+  .tab-btn { padding: 8px 16px; font-size: 13px; font-weight: 500; background: none; border: none; cursor: pointer; color: #888780; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab-btn.active { color: #1a1a18; border-bottom-color: #1a1a18; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
 
   @media (max-width: 768px) {
     .container { padding: 1rem; }
-    .filters input { min-width: 100%; }
+    .filters input[type=text] { min-width: 100%; }
     .filters select { flex-grow: 1; }
     table thead { display: none; }
     table, tbody, tr, td { display: block; width: 100%; }
@@ -165,29 +197,25 @@
     .action-btn { background: #f1efe8; padding: 6px 12px; width: 100%; justify-content: center; display: flex; }
     .field-row { grid-template-columns: 1fr; }
     .modal-wide { max-width: 100%; }
+    .filter-date-group { flex-wrap: wrap; }
   }
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════
-     LOGIN PAGE
-══════════════════════════════════════ -->
+<!-- LOGIN -->
 <div class="auth-wrap" id="authPage">
   <div class="auth-box">
     <div class="auth-logo"><i class="ti ti-ticket"></i> Ticketing Dashboard</div>
     <div class="auth-sub">© 2026 RMDK IT — Silakan masuk untuk melanjutkan</div>
-
     <div id="loginAlert"></div>
     <div class="field">
       <label>Username</label>
-      <input id="lUsername" placeholder="Masukkan username" autocomplete="username"
-             onkeydown="if(event.key==='Enter') doLogin()" />
+      <input id="lUsername" placeholder="Masukkan username" autocomplete="username" onkeydown="if(event.key==='Enter') doLogin()" />
     </div>
     <div class="field">
       <label>Password</label>
-      <input id="lPassword" type="password" placeholder="••••••••" autocomplete="current-password"
-             onkeydown="if(event.key==='Enter') doLogin()" />
+      <input id="lPassword" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()" />
     </div>
     <button class="btn-save" style="width:100%;margin-top:4px;padding:10px" id="btnLogin" onclick="doLogin()">
       <i class="ti ti-login" style="margin-right:6px"></i>Masuk
@@ -198,9 +226,7 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════
-     DASHBOARD
-══════════════════════════════════════ -->
+<!-- DASHBOARD -->
 <div class="container" id="dashPage" style="display:none">
   <div class="top-bar">
     <div>
@@ -209,15 +235,30 @@
     </div>
     <div class="action-btns">
       <div class="user-chip" id="userChip"></div>
-      <button class="btn-csv" onclick="exportToCSV()"><i class="ti ti-download"></i> Export CSV</button>
-      <button class="btn-new"  id="btnNewTicket"    style="display:none" onclick="openNew()"><i class="ti ti-plus"></i> Tiket baru</button>
-      <button class="btn-blue" id="btnManageUsers"  style="display:none" onclick="openUserManagement()"><i class="ti ti-users"></i> Kelola User</button>
+      <button class="btn-csv" onclick="exportToCSV()"><i class="ti ti-table-export"></i> CSV</button>
+      <button class="btn-green" onclick="exportToPDF()"><i class="ti ti-file-type-pdf"></i> PDF</button>
+      <button class="btn-new"  id="btnNewTicket"   style="display:none" onclick="openNew()"><i class="ti ti-plus"></i> Tiket baru</button>
+      <button class="btn-blue" id="btnManageUsers" style="display:none" onclick="openUserManagement()"><i class="ti ti-settings"></i> Kelola</button>
       <button class="btn-logout" onclick="doLogout()"><i class="ti ti-logout"></i> Keluar</button>
     </div>
   </div>
 
+  <!-- STATS -->
   <div class="stats-grid" id="stats"></div>
 
+  <!-- CHARTS -->
+  <div class="charts-grid" id="chartsSection">
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-chart-bar"></i> Tiket per Status</div>
+      <div class="chart-wrap"><canvas id="chartStatus"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-chart-pie"></i> Tiket per Kategori</div>
+      <div class="chart-wrap"><canvas id="chartCategory"></canvas></div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
   <div class="filters">
     <i class="ti ti-filter" style="color:#888780;font-size:16px"></i>
     <input type="text" id="q" placeholder="Cari tiket, pelapor..." oninput="render()" />
@@ -230,6 +271,16 @@
       <option value="">Semua prioritas</option>
       <option>low</option><option>normal</option><option>high</option>
     </select>
+    <select id="fCategory" onchange="render()">
+      <option value="">Semua kategori</option>
+    </select>
+    <div class="filter-date-group">
+      <i class="ti ti-calendar" style="font-size:14px"></i>
+      <input type="date" id="fDateFrom" onchange="render()" title="Dari tanggal" />
+      <span>–</span>
+      <input type="date" id="fDateTo" onchange="render()" title="Sampai tanggal" />
+    </div>
+    <button class="btn-reset-filter" onclick="resetFilters()" title="Reset semua filter"><i class="ti ti-x"></i></button>
   </div>
 
   <div class="table-wrap">
@@ -238,9 +289,9 @@
         <tr>
           <th class="col-id">No Tiket</th>
           <th class="col-title">Judul permintaan</th>
+          <th class="col-cat">Kategori</th>
           <th class="col-reporter">Pelapor</th>
           <th class="col-date">Tgl Dibuat</th>
-          <th class="col-done-date">Tgl Selesai</th>
           <th class="col-priority">Prioritas</th>
           <th class="col-status">Status</th>
           <th class="col-action"></th>
@@ -252,23 +303,36 @@
   <div class="footer">© 2026 RMDK IT</div>
 </div>
 
-<!-- ══════════════════════════════════════
-     MODAL: TIKET BARU
-══════════════════════════════════════ -->
+<!-- MODAL: TIKET BARU -->
 <div class="modal-bg" id="newModal">
   <div class="modal">
     <h3><i class="ti ti-ticket"></i> Buat tiket baru</h3>
     <div class="field"><label>Judul permintaan *</label>
-      <input id="nTitle" placeholder="contoh: Bongkar mesin printer Epson L3150" /></div>
+      <input id="nTitle" placeholder="contoh: Printer tidak bisa menarik kertas" /></div>
     <div class="field"><label>Deskripsi</label>
       <textarea id="nDesc" placeholder="Detail permintaan..."></textarea></div>
-    <div class="field"><label>Nama pelapor *</label>
-      <input id="nReporter" placeholder="Nama karyawan" /></div>
+    <div class="field field-row">
+      <div><label>Nama pelapor *</label>
+        <input id="nReporter" placeholder="Nama karyawan" /></div>
+      <div><label>Kategori</label>
+        <select id="nCategory"></select></div>
+    </div>
     <div class="field field-row">
       <div><label>Prioritas</label>
         <select id="nPriority"><option>low</option><option selected>normal</option><option>high</option></select></div>
       <div><label>Status awal</label>
         <select id="nStatus"><option selected>open</option><option>in progress</option><option>pending</option></select></div>
+    </div>
+    <div class="field">
+      <label>Foto / Attachment (opsional, maks 1MB)</label>
+      <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+        <i class="ti ti-photo-up"></i>
+        Klik untuk upload foto kerusakan
+        <div style="font-size:11px;margin-top:4px;color:#aaa">JPG, PNG — akan dikompres otomatis</div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFileSelect(event)" />
+      <div class="upload-progress" id="uploadProgress"><i class="ti ti-loader"></i> Mengompres foto...</div>
+      <div class="attachment-preview" id="attachPreview"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('newModal')">Batal</button>
@@ -277,33 +341,27 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════
-     MODAL: DETAIL + ACTIVITY LOG
-══════════════════════════════════════ -->
+<!-- MODAL: DETAIL + LOG -->
 <div class="modal-bg" id="detailModal">
   <div class="modal modal-wide">
     <h3 id="dTitle"></h3>
     <div id="dBody"></div>
+    <div id="dAttachment"></div>
 
-    <!-- Activity Log -->
     <div class="log-section">
       <div class="log-title"><i class="ti ti-timeline"></i> Activity Log</div>
       <div class="log-list" id="logList"><div class="log-empty">Memuat log...</div></div>
-
-      <!-- Form log: teknisi & admin -->
       <div id="logForm" style="display:none">
         <textarea id="logMsg" placeholder="Tulis update / catatan pengerjaan..."></textarea>
         <div class="log-actions">
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <div class="status-row">
-              <label>Status:</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <div class="status-row"><label>Status:</label>
               <select id="dStatus">
                 <option>open</option><option>in progress</option><option>pending</option>
                 <option>resolved</option><option>closed</option>
               </select>
             </div>
-            <div class="status-row">
-              <label>Prioritas:</label>
+            <div class="status-row"><label>Prioritas:</label>
               <select id="dPriority">
                 <option value="low">Low</option>
                 <option value="normal">Normal</option>
@@ -327,52 +385,62 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════
-     MODAL: KELOLA USER (ADMIN)
-══════════════════════════════════════ -->
+<!-- MODAL: KELOLA (USER + KATEGORI) -->
 <div class="modal-bg" id="userModal">
   <div class="modal modal-wide">
-    <h3><i class="ti ti-users"></i> Kelola User</h3>
-
-    <!-- Form tambah user baru -->
-    <div class="add-user-box">
-      <h4><i class="ti ti-user-plus" style="margin-right:4px"></i>Tambah Akun Baru</h4>
-      <div id="addUserAlert"></div>
-      <div class="field-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Nama Lengkap *</label>
-          <input id="auName" placeholder="Nama lengkap" /></div>
-        <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Username *</label>
-          <input id="auUsername" placeholder="username" /></div>
-      </div>
-      <div class="field-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Password *</label>
-          <input id="auPassword" type="password" placeholder="min. 6 karakter" /></div>
-        <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Role</label>
-          <select id="auRole">
-            <option value="user">User / Pelapor</option>
-            <option value="teknisi">Teknisi</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-      </div>
-      <button class="btn-save" id="btnAddUser" onclick="addUser()" style="width:100%">
-        <i class="ti ti-plus" style="margin-right:4px"></i>Buat Akun
-      </button>
+    <h3><i class="ti ti-settings"></i> Pengaturan</h3>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchSettingTab('tabUsers')"><i class="ti ti-users" style="margin-right:4px"></i>Kelola User</button>
+      <button class="tab-btn" onclick="switchSettingTab('tabCategories')"><i class="ti ti-tag" style="margin-right:4px"></i>Kelola Kategori</button>
     </div>
 
-    <!-- Daftar user -->
-    <div class="table-wrap">
-      <table class="user-table">
-        <thead>
-          <tr>
-            <th>Nama Lengkap</th>
-            <th>Username</th>
-            <th>Role</th>
-            <th>Aksi</th>
-          </tr>
-        </thead>
-        <tbody id="userTableBody"></tbody>
-      </table>
+    <!-- TAB USERS -->
+    <div class="tab-content active" id="tabUsers">
+      <div class="add-user-box">
+        <h4><i class="ti ti-user-plus" style="margin-right:4px"></i>Tambah Akun Baru</h4>
+        <div id="addUserAlert"></div>
+        <div class="field-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Nama Lengkap *</label>
+            <input id="auName" placeholder="Nama lengkap" /></div>
+          <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Username *</label>
+            <input id="auUsername" placeholder="username" /></div>
+        </div>
+        <div class="field-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Password *</label>
+            <input id="auPassword" type="password" placeholder="min. 6 karakter" /></div>
+          <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Role</label>
+            <select id="auRole">
+              <option value="user">User / Pelapor</option>
+              <option value="teknisi">Teknisi</option>
+              <option value="admin">Admin</option>
+            </select></div>
+        </div>
+        <button class="btn-save" id="btnAddUser" onclick="addUser()" style="width:100%">
+          <i class="ti ti-plus" style="margin-right:4px"></i>Buat Akun
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table class="user-table">
+          <thead><tr><th>Nama Lengkap</th><th>Username</th><th>Role</th><th>Aksi</th></tr></thead>
+          <tbody id="userTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB CATEGORIES -->
+    <div class="tab-content" id="tabCategories">
+      <div class="add-user-box">
+        <h4><i class="ti ti-tag" style="margin-right:4px"></i>Tambah Kategori Baru</h4>
+        <div id="addCatAlert"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="newCatName" placeholder="Nama kategori baru..." style="flex:1;font-size:13px;padding:8px 10px;border-radius:8px;border:0.5px solid #c8c7be;outline:none" onkeydown="if(event.key==='Enter') addCategory()" />
+          <button class="btn-save" id="btnAddCat" onclick="addCategory()"><i class="ti ti-plus" style="margin-right:4px"></i>Tambah</button>
+        </div>
+      </div>
+      <div id="catListWrap">
+        <div class="cat-list" id="catList"></div>
+        <div style="font-size:12px;color:#888780;margin-top:4px"><i class="ti ti-info-circle" style="margin-right:4px"></i>Klik × untuk hapus kategori</div>
+      </div>
     </div>
 
     <div class="modal-footer">
@@ -381,25 +449,14 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════
-     MODAL: RESET PASSWORD
-══════════════════════════════════════ -->
+<!-- MODAL: RESET PASSWORD -->
 <div class="modal-bg" id="resetModal">
   <div class="modal">
     <h3><i class="ti ti-key"></i> Reset Password</h3>
     <div id="resetAlert"></div>
-    <div class="field">
-      <label>User</label>
-      <input id="resetUserLabel" disabled />
-    </div>
-    <div class="field">
-      <label>Password Baru *</label>
-      <input id="resetNewPass" type="password" placeholder="min. 6 karakter" />
-    </div>
-    <div class="field">
-      <label>Konfirmasi Password *</label>
-      <input id="resetConfPass" type="password" placeholder="ulangi password baru" />
-    </div>
+    <div class="field"><label>User</label><input id="resetUserLabel" disabled /></div>
+    <div class="field"><label>Password Baru *</label><input id="resetNewPass" type="password" placeholder="min. 6 karakter" /></div>
+    <div class="field"><label>Konfirmasi Password *</label><input id="resetConfPass" type="password" placeholder="ulangi password baru" /></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('resetModal')">Batal</button>
       <button class="btn-save" id="btnResetPass" onclick="doResetPassword()">Simpan Password</button>
@@ -407,156 +464,233 @@
   </div>
 </div>
 
+<!-- MODAL: LIHAT FOTO BESAR -->
+<div class="modal-bg" id="imgModal" onclick="closeModal('imgModal')">
+  <div style="max-width:90vw;max-height:90vh">
+    <img id="imgFull" style="max-width:90vw;max-height:90vh;border-radius:12px;display:block" />
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════
-//  SUPABASE
+//  SUPABASE CONFIG
 // ══════════════════════════════════════════════
-const SB_URL = 'https://rmjrzbwxpqlpcxvnlgtu.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtanJ6Ynd4cHFscGN4dm5sZ3R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NDYzNjMsImV4cCI6MjA5NjIyMjM2M30.e7SpjeVK5kHHjrJ8S0kecV5h728Y_lFXAYK9XCV2al8';
-const H = {
-  'Content-Type': 'application/json',
-  'apikey': SB_KEY,
-  'Authorization': 'Bearer ' + SB_KEY,
-  'Prefer': 'return=representation'
-};
+const SB_URL    = 'https://rmjrzbwxpqlpcxvnlgtu.supabase.co';
+const SB_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtanJ6Ynd4cHFscGN4dm5sZ3R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NDYzNjMsImV4cCI6MjA5NjIyMjM2M30.e7SpjeVK5kHHjrJ8S0kecV5h728Y_lFXAYK9XCV2al8';
+const BUCKET    = 'ticket-attachments';
+const H = { 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Prefer':'return=representation' };
 
-async function sb(path, opts = {}) {
-  const res = await fetch(SB_URL + '/rest/v1/' + path, { headers: H, ...opts });
-  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || 'Request gagal'); }
-  if (res.status === 204) return [];
+async function sb(path, opts={}) {
+  const res = await fetch(SB_URL+'/rest/v1/'+path, {headers:H, ...opts});
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message||'Request gagal'); }
+  if (res.status===204) return [];
   return res.json();
+}
+
+async function sbUpload(filePath, blob) {
+  const res = await fetch(`${SB_URL}/storage/v1/object/${BUCKET}/${filePath}`, {
+    method:'POST', headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':blob.type,'x-upsert':'true'},
+    body: blob
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||'Upload gagal'); }
+  return `${SB_URL}/storage/v1/object/public/${BUCKET}/${filePath}`;
 }
 
 // ══════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════
-let currentUser     = null;
-let tickets         = [];
-let currentTicketId = null;
-let resetTargetId   = null;
-let nextNum         = 1;
+let currentUser=null, tickets=[], categories=[], currentTicketId=null, resetTargetId=null, nextNum=1;
+let pendingFile=null;
+let chartStatus=null, chartCategory=null;
 
-const pad  = n => String(n).padStart(3, '0');
-const isAdmin     = () => currentUser?.role === 'admin';
-const isTechnician= () => ['admin','teknisi'].includes(currentUser?.role);
-const isLoggedIn  = () => currentUser !== null;
+const pad=n=>String(n).padStart(3,'0');
+const isAdmin=()=>currentUser?.role==='admin';
+const isTech=()=>['admin','teknisi'].includes(currentUser?.role);
+const isLoggedIn=()=>currentUser!==null;
 
 // ══════════════════════════════════════════════
 //  ALERT HELPERS
 // ══════════════════════════════════════════════
-function showAlert(elId, msg, type = 'error') {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
-  if (type === 'success') setTimeout(() => { el.innerHTML = ''; }, 3000);
+function showAlert(id,msg,type='error'){
+  const el=document.getElementById(id); if(!el) return;
+  el.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;
+  if(type==='success') setTimeout(()=>{el.innerHTML='';},3000);
 }
-function clearAlert(elId) { const el = document.getElementById(elId); if (el) el.innerHTML = ''; }
+function clearAlert(id){const el=document.getElementById(id);if(el)el.innerHTML='';}
 
 // ══════════════════════════════════════════════
-//  LOGIN
+//  LOGIN / LOGOUT
 // ══════════════════════════════════════════════
-async function doLogin() {
-  const username = document.getElementById('lUsername').value.trim();
-  const password = document.getElementById('lPassword').value;
-  if (!username || !password) { showAlert('loginAlert', 'Username dan password wajib diisi.'); return; }
-  const btn = document.getElementById('btnLogin');
-  btn.textContent = 'Masuk...'; btn.disabled = true;
-  try {
-    const rows = await sb(`users?username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=id,username,full_name,role`);
-    if (!rows.length) { showAlert('loginAlert', 'Username atau password salah.'); return; }
-    currentUser = rows[0];
-    enterDashboard();
-  } catch (e) { showAlert('loginAlert', 'Koneksi error: ' + e.message); }
-  finally { btn.innerHTML = '<i class="ti ti-login" style="margin-right:6px"></i>Masuk'; btn.disabled = false; }
+async function doLogin(){
+  const u=document.getElementById('lUsername').value.trim();
+  const p=document.getElementById('lPassword').value;
+  if(!u||!p){showAlert('loginAlert','Username dan password wajib diisi.');return;}
+  const btn=document.getElementById('btnLogin');
+  btn.textContent='Masuk...'; btn.disabled=true;
+  try{
+    const rows=await sb(`users?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=id,username,full_name,role`);
+    if(!rows.length){showAlert('loginAlert','Username atau password salah.');return;}
+    currentUser=rows[0]; enterDashboard();
+  }catch(e){showAlert('loginAlert','Koneksi error: '+e.message);}
+  finally{btn.innerHTML='<i class="ti ti-login" style="margin-right:6px"></i>Masuk';btn.disabled=false;}
 }
-
-function guestAccess() { currentUser = null; enterDashboard(); }
-
-function doLogout() {
-  currentUser = null; tickets = [];
-  document.getElementById('dashPage').style.display = 'none';
-  document.getElementById('authPage').style.display = 'flex';
-  document.getElementById('lUsername').value = '';
-  document.getElementById('lPassword').value = '';
+function guestAccess(){currentUser=null;enterDashboard();}
+function doLogout(){
+  currentUser=null;tickets=[];
+  document.getElementById('dashPage').style.display='none';
+  document.getElementById('authPage').style.display='flex';
+  document.getElementById('lUsername').value='';
+  document.getElementById('lPassword').value='';
   clearAlert('loginAlert');
 }
 
 // ══════════════════════════════════════════════
 //  ENTER DASHBOARD
 // ══════════════════════════════════════════════
-function enterDashboard() {
-  document.getElementById('authPage').style.display = 'none';
-  document.getElementById('dashPage').style.display = 'block';
-
-  const chip = document.getElementById('userChip');
-  if (currentUser) {
-    const label = { admin: 'Admin', teknisi: 'Teknisi', user: 'User' }[currentUser.role] || currentUser.role;
-    chip.innerHTML = `<i class="ti ti-user" style="font-size:14px"></i> ${currentUser.full_name} <span class="role-badge role-${currentUser.role}">${label}</span>`;
+async function enterDashboard(){
+  document.getElementById('authPage').style.display='none';
+  document.getElementById('dashPage').style.display='block';
+  const chip=document.getElementById('userChip');
+  if(currentUser){
+    const lbl={admin:'Admin',teknisi:'Teknisi',user:'User'}[currentUser.role]||currentUser.role;
+    chip.innerHTML=`<i class="ti ti-user" style="font-size:14px"></i> ${currentUser.full_name} <span class="role-badge role-${currentUser.role}">${lbl}</span>`;
   } else {
-    chip.innerHTML = `<i class="ti ti-eye" style="font-size:14px"></i> Tamu <span class="role-badge role-publik">View Only</span>`;
+    chip.innerHTML=`<i class="ti ti-eye" style="font-size:14px"></i> Tamu <span class="role-badge role-publik">View Only</span>`;
   }
+  document.getElementById('btnNewTicket').style.display=isLoggedIn()?'flex':'none';
+  document.getElementById('btnManageUsers').style.display=isAdmin()?'flex':'none';
+  await fetchCategories();
+  await fetchTickets();
+}
 
-  document.getElementById('btnNewTicket').style.display   = isLoggedIn() ? 'flex' : 'none';
-  document.getElementById('btnManageUsers').style.display = isAdmin()    ? 'flex' : 'none';
-  fetchTickets();
+// ══════════════════════════════════════════════
+//  CATEGORIES
+// ══════════════════════════════════════════════
+async function fetchCategories(){
+  try{
+    categories=await sb('categories?order=name.asc');
+    const selects=['nCategory','fCategory'];
+    selects.forEach(sid=>{
+      const el=document.getElementById(sid); if(!el) return;
+      const cur=el.value;
+      const isFilter=sid==='fCategory';
+      el.innerHTML=isFilter?'<option value="">Semua kategori</option>':'';
+      categories.forEach(c=>{
+        const o=document.createElement('option');
+        o.value=c.name; o.textContent=c.name;
+        if(c.name===cur) o.selected=true;
+        el.appendChild(o);
+      });
+    });
+  }catch(e){console.error('Gagal load kategori:',e);}
+}
+
+async function addCategory(){
+  const name=document.getElementById('newCatName').value.trim();
+  if(!name){showAlert('addCatAlert','Nama kategori wajib diisi.');return;}
+  const btn=document.getElementById('btnAddCat');
+  btn.textContent='Menambah...'; btn.disabled=true;
+  try{
+    const exist=await sb(`categories?name=eq.${encodeURIComponent(name)}&select=id`);
+    if(exist.length){showAlert('addCatAlert','Kategori sudah ada.');return;}
+    await sb('categories',{method:'POST',body:JSON.stringify({name})});
+    document.getElementById('newCatName').value='';
+    showAlert('addCatAlert',`Kategori "${name}" ditambahkan!`,'success');
+    await fetchCategories();
+    renderCatList();
+  }catch(e){showAlert('addCatAlert','Error: '+e.message);}
+  finally{btn.innerHTML='<i class="ti ti-plus" style="margin-right:4px"></i>Tambah';btn.disabled=false;}
+}
+
+async function deleteCategory(id,name){
+  if(!confirm(`Hapus kategori "${name}"?`)) return;
+  try{
+    await sb(`categories?id=eq.${id}`,{method:'DELETE'});
+    await fetchCategories();
+    renderCatList();
+  }catch(e){alert('Gagal hapus: '+e.message);}
+}
+
+function renderCatList(){
+  const el=document.getElementById('catList'); if(!el) return;
+  el.innerHTML=categories.length
+    ? categories.map(c=>`<div class="cat-item">${c.name}<button onclick="deleteCategory('${c.id}','${c.name}')" title="Hapus">×</button></div>`).join('')
+    : '<span style="font-size:13px;color:#888780">Belum ada kategori.</span>';
 }
 
 // ══════════════════════════════════════════════
 //  TICKETS
 // ══════════════════════════════════════════════
-function showLoading() {
-  document.getElementById('tbody').innerHTML =
+function showLoading(){
+  document.getElementById('tbody').innerHTML=
     '<tr><td colspan="8" class="empty"><i class="ti ti-loader" style="font-size:24px;display:block;margin-bottom:8px"></i>Memuat data...</td></tr>';
 }
 
-async function fetchTickets() {
+async function fetchTickets(){
   showLoading();
-  try {
-    tickets = await sb('tickets?order=created_at.desc');
-    const nums = tickets.map(t => parseInt((t.id||'').replace('TKT-',''))).filter(n => !isNaN(n));
-    nextNum = nums.length ? Math.max(...nums) + 1 : 1;
+  try{
+    tickets=await sb('tickets?order=created_at.desc');
+    const nums=tickets.map(t=>parseInt((t.id||'').replace('TKT-',''))).filter(n=>!isNaN(n));
+    nextNum=nums.length?Math.max(...nums)+1:1;
     render();
-  } catch (e) {
-    document.getElementById('tbody').innerHTML =
+  }catch(e){
+    document.getElementById('tbody').innerHTML=
       `<tr><td colspan="8" class="empty"><i class="ti ti-wifi-off" style="font-size:24px;display:block;margin-bottom:8px"></i>Gagal memuat: ${e.message}</td></tr>`;
   }
 }
 
-function render() {
-  const q  = document.getElementById('q').value.toLowerCase();
-  const fs = document.getElementById('fStatus').value;
-  const fp = document.getElementById('fPriority').value;
-  const rows = tickets.filter(t =>
-    (!q  || (t.title||'').toLowerCase().includes(q) || (t.reporter||'').toLowerCase().includes(q) || (t.id||'').toLowerCase().includes(q)) &&
-    (!fs || t.status === fs) &&
-    (!fp || (t.priority||'').toLowerCase() === fp.toLowerCase())
+function resetFilters(){
+  ['q','fDateFrom','fDateTo'].forEach(id=>document.getElementById(id).value='');
+  ['fStatus','fPriority','fCategory'].forEach(id=>document.getElementById(id).selectedIndex=0);
+  render();
+}
+
+function render(){
+  const q=document.getElementById('q').value.toLowerCase();
+  const fs=document.getElementById('fStatus').value;
+  const fp=document.getElementById('fPriority').value;
+  const fc=document.getElementById('fCategory').value;
+  const fd1=document.getElementById('fDateFrom').value;
+  const fd2=document.getElementById('fDateTo').value;
+
+  const rows=tickets.filter(t=>
+    (!q||(t.title||'').toLowerCase().includes(q)||(t.reporter||'').toLowerCase().includes(q)||(t.id||'').toLowerCase().includes(q))&&
+    (!fs||t.status===fs)&&
+    (!fp||(t.priority||'').toLowerCase()===fp.toLowerCase())&&
+    (!fc||(t.category||'')=== fc)&&
+    (!fd1||t.date>=fd1)&&
+    (!fd2||t.date<=fd2)
   );
-  const sClass = s => 's-' + (s||'open').replace(/\s+/g,'-');
-  const tbody = document.getElementById('tbody');
-  tbody.innerHTML = rows.length ? rows.map(t => `
+
+  const sClass=s=>'s-'+(s||'open').replace(/\s+/g,'-');
+  const tbody=document.getElementById('tbody');
+  tbody.innerHTML=rows.length?rows.map(t=>`
     <tr>
       <td data-label="No Tiket"><span class="ticket-id">${t.id}</span></td>
       <td data-label="Judul" style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.title}">${t.title}</td>
+      <td data-label="Kategori"><span class="cat-badge">${t.category||'-'}</span></td>
       <td data-label="Pelapor" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.reporter}</td>
       <td data-label="Tgl Dibuat" style="color:#888780">${t.date}</td>
-      <td data-label="Tgl Selesai" style="color:#888780">${t.end_date||'-'}</td>
       <td data-label="Prioritas"><span class="badge p-${(t.priority||'normal').toLowerCase()}">${t.priority}</span></td>
       <td data-label="Status"><span class="badge ${sClass(t.status)}">${t.status}</span></td>
       <td data-label="Detail"><button class="action-btn" onclick="openDetail('${t.id}')" title="Lihat detail"><i class="ti ti-eye"></i></button></td>
-    </tr>`).join('') :
+    </tr>`).join(''):
     '<tr><td colspan="8" class="empty"><i class="ti ti-ticket-off" style="font-size:28px;display:block;margin-bottom:8px"></i>Tidak ada tiket ditemukan</td></tr>';
-  renderStats();
+
+  renderStats(rows);
+  renderCharts(rows);
 }
 
-function renderStats() {
-  const c = { total: tickets.length, open: 0, inprogress: 0, high: 0, resolved: 0 };
-  tickets.forEach(t => {
-    if (t.status === 'open') c.open++;
-    if (t.status === 'in progress') c.inprogress++;
-    if (t.priority === 'high' && !['resolved','closed'].includes(t.status)) c.high++;
-    if (t.status === 'resolved') c.resolved++;
+function renderStats(rows){
+  rows=rows||tickets;
+  const c={total:rows.length,open:0,inprogress:0,high:0,resolved:0};
+  rows.forEach(t=>{
+    if(t.status==='open') c.open++;
+    if(t.status==='in progress') c.inprogress++;
+    if(t.priority==='high'&&!['resolved','closed'].includes(t.status)) c.high++;
+    if(t.status==='resolved') c.resolved++;
   });
-  document.getElementById('stats').innerHTML = `
+  document.getElementById('stats').innerHTML=`
     <div class="stat-card"><div class="stat-label"><i class="ti ti-list"></i>Total tiket</div><div class="stat-num">${c.total}</div></div>
     <div class="stat-card"><div class="stat-label"><i class="ti ti-circle-dot"></i>Open</div><div class="stat-num amber">${c.open}</div></div>
     <div class="stat-card"><div class="stat-label"><i class="ti ti-progress"></i>In Progress</div><div class="stat-num blue">${c.inprogress}</div></div>
@@ -564,283 +698,419 @@ function renderStats() {
     <div class="stat-card"><div class="stat-label"><i class="ti ti-circle-check"></i>Resolved</div><div class="stat-num green">${c.resolved}</div></div>`;
 }
 
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-function openNew()       { document.getElementById('newModal').classList.add('open'); }
+function renderCharts(rows){
+  rows=rows||tickets;
+  // Chart Status
+  const statusMap={open:0,'in progress':0,pending:0,resolved:0,closed:0};
+  rows.forEach(t=>{if(statusMap[t.status]!==undefined) statusMap[t.status]++;});
+  const sLabels=Object.keys(statusMap);
+  const sData=Object.values(statusMap);
+  const sColors=['#FAEEDA','#E6F1FB','#EAF2FA','#EAF3DE','#F1EFE8'];
+  const sBorder=['#854F0B','#185FA5','#2B6CB0','#3B6D11','#5F5E5A'];
+
+  if(chartStatus) chartStatus.destroy();
+  chartStatus=new Chart(document.getElementById('chartStatus'),{
+    type:'bar',
+    data:{labels:sLabels,datasets:[{data:sData,backgroundColor:sColors,borderColor:sBorder,borderWidth:1.5,borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}
+  });
+
+  // Chart Kategori
+  const catMap={};
+  rows.forEach(t=>{const c=t.category||'Umum'; catMap[c]=(catMap[c]||0)+1;});
+  const cLabels=Object.keys(catMap);
+  const cData=Object.values(catMap);
+  const palette=['#EAF3DE','#E6F1FB','#FAECE7','#FAEEDA','#EAF2FA','#F1EFE8','#FEF9C3','#FDE8FF'];
+  const paletteBorder=['#3B6D11','#185FA5','#993C1D','#854F0B','#2B6CB0','#5F5E5A','#B45309','#7C3AED'];
+
+  if(chartCategory) chartCategory.destroy();
+  chartCategory=new Chart(document.getElementById('chartCategory'),{
+    type:'doughnut',
+    data:{labels:cLabels,datasets:[{data:cData,backgroundColor:palette.slice(0,cLabels.length),borderColor:paletteBorder.slice(0,cLabels.length),borderWidth:1.5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12}}}}
+  });
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function openNew(){
+  document.getElementById('attachPreview').innerHTML='';
+  document.getElementById('uploadArea').innerHTML='<i class="ti ti-photo-up"></i> Klik untuk upload foto kerusakan<div style="font-size:11px;margin-top:4px;color:#aaa">JPG, PNG — akan dikompres otomatis</div>';
+  pendingFile=null;
+  document.getElementById('newModal').classList.add('open');
+}
+
+// ══════════════════════════════════════════════
+//  FILE UPLOAD + COMPRESS
+// ══════════════════════════════════════════════
+function handleFileSelect(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  document.getElementById('uploadProgress').style.display='block';
+  compressImage(file, 800, 0.7, blob=>{
+    document.getElementById('uploadProgress').style.display='none';
+    pendingFile={blob, name: file.name.replace(/[^a-zA-Z0-9._-]/g,'_')};
+    const url=URL.createObjectURL(blob);
+    document.getElementById('attachPreview').innerHTML=
+      `<img src="${url}" style="max-width:100%;max-height:160px;border-radius:8px;border:0.5px solid #d3d1c7;margin-top:8px" />
+       <div style="font-size:11px;color:#888780;margin-top:4px"><i class="ti ti-check" style="color:#3B6D11"></i> Foto siap diupload (${(blob.size/1024).toFixed(0)}KB)</div>`;
+    document.getElementById('uploadArea').innerHTML='<i class="ti ti-photo-check" style="color:#3B6D11"></i> Foto dipilih';
+    e.target.value='';
+  });
+}
+
+function compressImage(file, maxW, quality, cb){
+  const img=new Image();
+  const url=URL.createObjectURL(file);
+  img.onload=()=>{
+    URL.revokeObjectURL(url);
+    let w=img.width, h=img.height;
+    if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+    const canvas=document.createElement('canvas');
+    canvas.width=w; canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    canvas.toBlob(cb,'image/jpeg',quality);
+  };
+  img.src=url;
+}
 
 // ══════════════════════════════════════════════
 //  SAVE NEW TICKET
 // ══════════════════════════════════════════════
-async function saveNew() {
-  const title    = document.getElementById('nTitle').value.trim();
-  const reporter = document.getElementById('nReporter').value.trim();
-  if (!title || !reporter) { alert('Judul dan pelapor wajib diisi.'); return; }
-  const btn = document.getElementById('btnSaveNew');
-  btn.textContent = 'Menyimpan...'; btn.disabled = true;
-  const today  = new Date().toISOString().slice(0,10);
-  const status = document.getElementById('nStatus').value;
-  try {
-    const t = {
-      id: 'TKT-' + pad(nextNum++), title,
-      desc: document.getElementById('nDesc').value.trim(),
-      reporter, date: today,
-      end_date: ['resolved','closed'].includes(status) ? today : '-',
-      priority: document.getElementById('nPriority').value, status
+async function saveNew(){
+  const title=document.getElementById('nTitle').value.trim();
+  const reporter=document.getElementById('nReporter').value.trim();
+  if(!title||!reporter){alert('Judul dan pelapor wajib diisi.');return;}
+  const btn=document.getElementById('btnSaveNew');
+  btn.textContent='Menyimpan...'; btn.disabled=true;
+  const today=new Date().toISOString().slice(0,10);
+  const status=document.getElementById('nStatus').value;
+  try{
+    let attachment_url=null;
+    if(pendingFile){
+      btn.textContent='Upload foto...';
+      const path=`${Date.now()}_${pendingFile.name}`;
+      attachment_url=await sbUpload(path, pendingFile.blob);
+    }
+    const t={
+      id:'TKT-'+pad(nextNum++), title,
+      desc:document.getElementById('nDesc').value.trim(),
+      reporter, date:today,
+      end_date:['resolved','closed'].includes(status)?today:'-',
+      priority:document.getElementById('nPriority').value,
+      status,
+      category:document.getElementById('nCategory').value||'Umum',
+      attachment_url
     };
-    await sb('tickets', { method: 'POST', body: JSON.stringify(t) });
-    await addLog(t.id, `Tiket dibuat oleh ${currentUser.full_name}.`, 'system');
+    await sb('tickets',{method:'POST',body:JSON.stringify(t)});
+    await addLog(t.id,`Tiket dibuat oleh ${currentUser.full_name}.`,'system');
     closeModal('newModal');
-    ['nTitle','nDesc','nReporter'].forEach(id => document.getElementById(id).value = '');
+    ['nTitle','nDesc','nReporter'].forEach(id=>document.getElementById(id).value='');
+    pendingFile=null;
+    document.getElementById('attachPreview').innerHTML='';
     await fetchTickets();
-  } catch (e) { alert('Gagal simpan: ' + e.message); }
-  finally { btn.textContent = 'Simpan tiket'; btn.disabled = false; }
+  }catch(e){alert('Gagal simpan: '+e.message);}
+  finally{btn.textContent='Simpan tiket';btn.disabled=false;}
 }
 
 // ══════════════════════════════════════════════
 //  DETAIL MODAL
 // ══════════════════════════════════════════════
-async function openDetail(id) {
-  const t = tickets.find(x => x.id === id);
-  if (!t) return;
-  currentTicketId = id;
-  document.getElementById('dTitle').textContent = t.title;
-  document.getElementById('dBody').innerHTML = `
+async function openDetail(id){
+  const t=tickets.find(x=>x.id===id);
+  if(!t) return;
+  currentTicketId=id;
+  document.getElementById('dTitle').textContent=t.title;
+  document.getElementById('dBody').innerHTML=`
     <div class="detail-row"><span>No Tiket</span><span class="ticket-id">${t.id}</span></div>
+    <div class="detail-row"><span>Kategori</span><span class="cat-badge">${t.category||'-'}</span></div>
     <div class="detail-row"><span>Deskripsi</span><span style="max-width:60%;text-align:right">${t.desc||'-'}</span></div>
     <div class="detail-row"><span>Pelapor</span><span>${t.reporter}</span></div>
     <div class="detail-row"><span>Tanggal Dibuat</span><span>${t.date}</span></div>
     <div class="detail-row"><span>Tanggal Selesai</span><span>${t.end_date||'-'}</span></div>
     <div class="detail-row"><span>Prioritas</span><span class="badge p-${(t.priority||'normal').toLowerCase()}">${t.priority}</span></div>
     <div class="detail-row"><span>Status</span><span class="badge s-${(t.status||'open').replace(/\s+/g,'-')}">${t.status}</span></div>`;
-  document.getElementById('logForm').style.display         = isTechnician() ? 'block' : 'none';
-  document.getElementById('btnDeleteTicket').style.display = isAdmin()       ? 'flex'  : 'none';
-  document.getElementById('dStatus').value   = t.status;
-  document.getElementById('dPriority').value = (t.priority || 'normal').toLowerCase();
-  document.getElementById('logMsg').value    = '';
+
+  // Tampilkan foto attachment
+  document.getElementById('dAttachment').innerHTML=t.attachment_url
+    ? `<div style="margin-top:10px;margin-bottom:4px;font-size:12px;color:#888780"><i class="ti ti-photo"></i> Foto Kerusakan</div>
+       <img src="${t.attachment_url}" style="max-width:100%;max-height:200px;border-radius:8px;border:0.5px solid #d3d1c7;cursor:pointer" onclick="viewImg('${t.attachment_url}')" title="Klik untuk perbesar" />`
+    : '';
+
+  document.getElementById('logForm').style.display=isTech()?'block':'none';
+  document.getElementById('btnDeleteTicket').style.display=isAdmin()?'flex':'none';
+  document.getElementById('dStatus').value=t.status;
+  document.getElementById('dPriority').value=(t.priority||'normal').toLowerCase();
+  document.getElementById('logMsg').value='';
   document.getElementById('detailModal').classList.add('open');
   await fetchLogs(id);
+}
+
+function viewImg(url){
+  document.getElementById('imgFull').src=url;
+  document.getElementById('imgModal').classList.add('open');
 }
 
 // ══════════════════════════════════════════════
 //  LOGS
 // ══════════════════════════════════════════════
-async function fetchLogs(ticketId) {
-  document.getElementById('logList').innerHTML = '<div class="log-empty">Memuat log...</div>';
-  try {
-    const logs = await sb(`ticket_logs?ticket_id=eq.${encodeURIComponent(ticketId)}&order=created_at.asc`);
-    document.getElementById('logList').innerHTML = logs.length ? logs.map(l => `
+async function fetchLogs(ticketId){
+  document.getElementById('logList').innerHTML='<div class="log-empty">Memuat log...</div>';
+  try{
+    const logs=await sb(`ticket_logs?ticket_id=eq.${encodeURIComponent(ticketId)}&order=created_at.asc`);
+    document.getElementById('logList').innerHTML=logs.length?logs.map(l=>`
       <div class="log-item ${l.role||'system'}">
         <div class="log-meta">
           <span class="log-name">${l.full_name||l.username}</span>
           <span class="role-badge role-${l.role||'system'}">${l.role||'system'}</span>
-          <span>${l.created_at ? new Date(l.created_at).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) : ''}</span>
+          <span>${l.created_at?new Date(l.created_at).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}):''}</span>
         </div>
         <div class="log-msg">${l.message}</div>
-      </div>`).join('') : '<div class="log-empty">Belum ada activity log.</div>';
-  } catch (e) {
-    document.getElementById('logList').innerHTML = `<div class="log-empty">Gagal memuat log: ${e.message}</div>`;
+      </div>`).join(''):'<div class="log-empty">Belum ada activity log.</div>';
+  }catch(e){
+    document.getElementById('logList').innerHTML=`<div class="log-empty">Gagal memuat log: ${e.message}</div>`;
   }
 }
 
-async function addLog(ticketId, message, role) {
-  const u = currentUser || { username: 'system', full_name: 'System', role: 'system' };
-  await sb('ticket_logs', { method: 'POST', body: JSON.stringify({
-    ticket_id: ticketId, username: u.username, full_name: u.full_name,
-    role: role || u.role, message
+async function addLog(ticketId,message,role){
+  const u=currentUser||{username:'system',full_name:'System',role:'system'};
+  await sb('ticket_logs',{method:'POST',body:JSON.stringify({
+    ticket_id:ticketId,username:u.username,full_name:u.full_name,role:role||u.role,message
   })});
 }
 
-async function saveLog() {
-  const msg         = document.getElementById('logMsg').value.trim();
-  const newStatus   = document.getElementById('dStatus').value;
-  const newPriority = document.getElementById('dPriority').value;
-  const t           = tickets.find(x => x.id === currentTicketId);
-  if (!t) return;
-  if (!msg) { alert('Tulis catatan terlebih dahulu.'); return; }
-  const btn = document.getElementById('btnSaveLog');
-  btn.textContent = 'Menyimpan...'; btn.disabled = true;
-  try {
-    const today           = new Date().toISOString().slice(0,10);
-    const statusChanged   = newStatus   !== t.status;
-    const priorityChanged = newPriority !== (t.priority||'normal').toLowerCase();
-
-    if (statusChanged || priorityChanged) {
-      const patch = {};
-      if (statusChanged)   { patch.status   = newStatus; patch.end_date = ['resolved','closed'].includes(newStatus) ? today : t.end_date||'-'; }
-      if (priorityChanged) { patch.priority = newPriority; }
-      await sb(`tickets?id=eq.${encodeURIComponent(currentTicketId)}`, {
-        method: 'PATCH', body: JSON.stringify(patch)
-      });
+async function saveLog(){
+  const msg=document.getElementById('logMsg').value.trim();
+  const newStatus=document.getElementById('dStatus').value;
+  const newPriority=document.getElementById('dPriority').value;
+  const t=tickets.find(x=>x.id===currentTicketId);
+  if(!t) return;
+  if(!msg){alert('Tulis catatan terlebih dahulu.');return;}
+  const btn=document.getElementById('btnSaveLog');
+  btn.textContent='Menyimpan...'; btn.disabled=true;
+  try{
+    const today=new Date().toISOString().slice(0,10);
+    const sc=newStatus!==t.status;
+    const pc=newPriority!==(t.priority||'normal').toLowerCase();
+    if(sc||pc){
+      const patch={};
+      if(sc){patch.status=newStatus;patch.end_date=['resolved','closed'].includes(newStatus)?today:t.end_date||'-';}
+      if(pc) patch.priority=newPriority;
+      await sb(`tickets?id=eq.${encodeURIComponent(currentTicketId)}`,{method:'PATCH',body:JSON.stringify(patch)});
     }
-
-    // Susun pesan log dengan perubahan
-    let logMsg = msg;
-    const changes = [];
-    if (statusChanged)   changes.push(`Status: ${t.status} → ${newStatus}`);
-    if (priorityChanged) changes.push(`Prioritas: ${t.priority} → ${newPriority}`);
-    if (changes.length)  logMsg += ` [${changes.join(' | ')}]`;
-
-    await addLog(currentTicketId, logMsg);
-    document.getElementById('logMsg').value = '';
+    const changes=[];
+    if(sc) changes.push(`Status: ${t.status} → ${newStatus}`);
+    if(pc) changes.push(`Prioritas: ${t.priority} → ${newPriority}`);
+    const logMsg=changes.length?`${msg} [${changes.join(' | ')}]`:msg;
+    await addLog(currentTicketId,logMsg);
+    document.getElementById('logMsg').value='';
     await fetchTickets();
     await fetchLogs(currentTicketId);
-
-    // Update badge di detail modal
-    const updated = tickets.find(x => x.id === currentTicketId);
-    if (updated) {
-      const rows = document.getElementById('dBody').querySelectorAll('.detail-row');
-      // row prioritas = index 5, status = index 6
-      if (priorityChanged && rows[5]) rows[5].querySelector('span:last-child').outerHTML =
-        `<span class="badge p-${newPriority}">${newPriority}</span>`;
-      if (statusChanged && rows[6]) rows[6].querySelector('span:last-child').outerHTML =
-        `<span class="badge s-${newStatus.replace(/\s+/g,'-')}">${newStatus}</span>`;
-    }
-  } catch (e) { alert('Gagal simpan: ' + e.message); }
-  finally { btn.innerHTML = '<i class="ti ti-send" style="margin-right:4px"></i>Simpan update'; btn.disabled = false; }
+  }catch(e){alert('Gagal simpan: '+e.message);}
+  finally{btn.innerHTML='<i class="ti ti-send" style="margin-right:4px"></i>Simpan update';btn.disabled=false;}
 }
 
 // ══════════════════════════════════════════════
 //  DELETE TICKET
 // ══════════════════════════════════════════════
-async function deleteTicket() {
-  if (!confirm('Hapus tiket ini beserta semua log-nya?')) return;
-  const btn = document.getElementById('btnDeleteTicket');
-  btn.textContent = 'Menghapus...'; btn.disabled = true;
-  try {
-    await sb(`ticket_logs?ticket_id=eq.${encodeURIComponent(currentTicketId)}`, { method: 'DELETE' });
-    await sb(`tickets?id=eq.${encodeURIComponent(currentTicketId)}`, { method: 'DELETE' });
+async function deleteTicket(){
+  if(!confirm('Hapus tiket ini beserta semua log-nya?')) return;
+  const btn=document.getElementById('btnDeleteTicket');
+  btn.textContent='Menghapus...'; btn.disabled=true;
+  try{
+    await sb(`ticket_logs?ticket_id=eq.${encodeURIComponent(currentTicketId)}`,{method:'DELETE'});
+    await sb(`tickets?id=eq.${encodeURIComponent(currentTicketId)}`,{method:'DELETE'});
     closeModal('detailModal');
     await fetchTickets();
-  } catch (e) { alert('Gagal hapus: ' + e.message); btn.textContent = 'Hapus tiket'; btn.disabled = false; }
+  }catch(e){alert('Gagal hapus: '+e.message);btn.textContent='Hapus tiket';btn.disabled=false;}
 }
 
 // ══════════════════════════════════════════════
 //  USER MANAGEMENT
 // ══════════════════════════════════════════════
-async function openUserManagement() {
+function switchSettingTab(tabId){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  event.target.classList.add('active');
+  if(tabId==='tabCategories') renderCatList();
+}
+
+async function openUserManagement(){
   clearAlert('addUserAlert');
-  ['auName','auUsername','auPassword'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('auRole').value = 'user';
+  ['auName','auUsername','auPassword'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('auRole').value='user';
   document.getElementById('userModal').classList.add('open');
+  // Reset ke tab users
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tabUsers').classList.add('active');
+  document.querySelector('.tab-btn').classList.add('active');
   await loadUserTable();
 }
 
-async function loadUserTable() {
-  document.getElementById('userTableBody').innerHTML =
-    '<tr><td colspan="4" class="empty" style="padding:1rem">Memuat...</td></tr>';
-  try {
-    const users = await sb('users?select=id,username,full_name,role&order=created_at.asc');
-    if (!users.length) {
-      document.getElementById('userTableBody').innerHTML =
-        '<tr><td colspan="4" class="empty" style="padding:1rem">Tidak ada user.</td></tr>'; return;
-    }
-    const roleLabel = { admin: 'Admin', teknisi: 'Teknisi', user: 'User' };
-    document.getElementById('userTableBody').innerHTML = users.map(u => `
+async function loadUserTable(){
+  document.getElementById('userTableBody').innerHTML='<tr><td colspan="4" class="empty" style="padding:1rem">Memuat...</td></tr>';
+  try{
+    const users=await sb('users?select=id,username,full_name,role&order=created_at.asc');
+    if(!users.length){document.getElementById('userTableBody').innerHTML='<tr><td colspan="4" class="empty" style="padding:1rem">Tidak ada user.</td></tr>';return;}
+    const rl={admin:'Admin',teknisi:'Teknisi',user:'User'};
+    document.getElementById('userTableBody').innerHTML=users.map(u=>`
       <tr>
-        <td>${u.full_name || '-'}</td>
+        <td>${u.full_name||'-'}</td>
         <td><span class="ticket-id" style="font-size:12px">${u.username}</span></td>
-        <td>
-          ${u.id === currentUser.id
-            ? `<span class="role-badge role-${u.role}">${roleLabel[u.role]||u.role}</span>`
-            : `<select onchange="changeRole('${u.id}',this.value)" style="font-size:12px;padding:4px 8px;border-radius:6px;border:0.5px solid #c8c7be">
-                <option value="user"    ${u.role==='user'    ?'selected':''}>User</option>
-                <option value="teknisi" ${u.role==='teknisi' ?'selected':''}>Teknisi</option>
-                <option value="admin"   ${u.role==='admin'   ?'selected':''}>Admin</option>
-               </select>`}
-        </td>
-        <td>
-          <div class="user-actions">
-            <button class="btn-sm btn-sm-blue" onclick="openReset('${u.id}','${u.full_name||u.username}')">
-              <i class="ti ti-key"></i> Reset PW
-            </button>
-            ${u.id !== currentUser.id
-              ? `<button class="btn-sm btn-sm-danger" onclick="deleteUser('${u.id}','${u.username}')">
-                   <i class="ti ti-trash"></i> Hapus
-                 </button>` : ''}
-          </div>
-        </td>
+        <td>${u.id===currentUser.id
+          ?`<span class="role-badge role-${u.role}">${rl[u.role]||u.role}</span>`
+          :`<select onchange="changeRole('${u.id}',this.value)" style="font-size:12px;padding:4px 8px;border-radius:6px;border:0.5px solid #c8c7be">
+              <option value="user" ${u.role==='user'?'selected':''}>User</option>
+              <option value="teknisi" ${u.role==='teknisi'?'selected':''}>Teknisi</option>
+              <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+            </select>`}</td>
+        <td><div class="user-actions">
+          <button class="btn-sm btn-sm-blue" onclick="openReset('${u.id}','${u.full_name||u.username}')"><i class="ti ti-key"></i> Reset PW</button>
+          ${u.id!==currentUser.id?`<button class="btn-sm btn-sm-danger" onclick="deleteUser('${u.id}','${u.username}')"><i class="ti ti-trash"></i> Hapus</button>`:''}
+        </div></td>
       </tr>`).join('');
-  } catch (e) {
-    document.getElementById('userTableBody').innerHTML =
-      `<tr><td colspan="4" class="empty" style="padding:1rem">Error: ${e.message}</td></tr>`;
-  }
+  }catch(e){document.getElementById('userTableBody').innerHTML=`<tr><td colspan="4" class="empty" style="padding:1rem">Error: ${e.message}</td></tr>`;}
 }
 
-async function addUser() {
-  const name     = document.getElementById('auName').value.trim();
-  const username = document.getElementById('auUsername').value.trim().toLowerCase().replace(/\s/g,'');
-  const password = document.getElementById('auPassword').value;
-  const role     = document.getElementById('auRole').value;
-  if (!name || !username || !password) { showAlert('addUserAlert', 'Semua field wajib diisi.'); return; }
-  if (password.length < 6) { showAlert('addUserAlert', 'Password minimal 6 karakter.'); return; }
-  const btn = document.getElementById('btnAddUser');
-  btn.textContent = 'Membuat...'; btn.disabled = true;
-  try {
-    const exist = await sb(`users?username=eq.${encodeURIComponent(username)}&select=id`);
-    if (exist.length) { showAlert('addUserAlert', 'Username sudah dipakai, coba yang lain.'); return; }
-    await sb('users', { method: 'POST', body: JSON.stringify({ username, password, full_name: name, role }) });
-    showAlert('addUserAlert', `Akun "${username}" berhasil dibuat!`, 'success');
-    ['auName','auUsername','auPassword'].forEach(id => document.getElementById(id).value = '');
+async function addUser(){
+  const name=document.getElementById('auName').value.trim();
+  const username=document.getElementById('auUsername').value.trim().toLowerCase().replace(/\s/g,'');
+  const password=document.getElementById('auPassword').value;
+  const role=document.getElementById('auRole').value;
+  if(!name||!username||!password){showAlert('addUserAlert','Semua field wajib diisi.');return;}
+  if(password.length<6){showAlert('addUserAlert','Password minimal 6 karakter.');return;}
+  const btn=document.getElementById('btnAddUser');
+  btn.textContent='Membuat...'; btn.disabled=true;
+  try{
+    const exist=await sb(`users?username=eq.${encodeURIComponent(username)}&select=id`);
+    if(exist.length){showAlert('addUserAlert','Username sudah dipakai.');return;}
+    await sb('users',{method:'POST',body:JSON.stringify({username,password,full_name:name,role})});
+    showAlert('addUserAlert',`Akun "${username}" berhasil dibuat!`,'success');
+    ['auName','auUsername','auPassword'].forEach(id=>document.getElementById(id).value='');
     await loadUserTable();
-  } catch (e) { showAlert('addUserAlert', 'Error: ' + e.message); }
-  finally { btn.innerHTML = '<i class="ti ti-plus" style="margin-right:4px"></i>Buat Akun'; btn.disabled = false; }
+  }catch(e){showAlert('addUserAlert','Error: '+e.message);}
+  finally{btn.innerHTML='<i class="ti ti-plus" style="margin-right:4px"></i>Buat Akun';btn.disabled=false;}
 }
 
-async function changeRole(userId, newRole) {
-  try {
-    await sb(`users?id=eq.${userId}`, { method: 'PATCH', body: JSON.stringify({ role: newRole }) });
-  } catch (e) { alert('Gagal ubah role: ' + e.message); }
+async function changeRole(userId,newRole){
+  try{await sb(`users?id=eq.${userId}`,{method:'PATCH',body:JSON.stringify({role:newRole})});}
+  catch(e){alert('Gagal ubah role: '+e.message);}
 }
 
-async function deleteUser(userId, username) {
-  if (!confirm(`Hapus akun "${username}"? Aksi ini tidak bisa dibatalkan.`)) return;
-  try {
-    await sb(`users?id=eq.${userId}`, { method: 'DELETE' });
-    await loadUserTable();
-  } catch (e) { alert('Gagal hapus: ' + e.message); }
+async function deleteUser(userId,username){
+  if(!confirm(`Hapus akun "${username}"?`)) return;
+  try{await sb(`users?id=eq.${userId}`,{method:'DELETE'});await loadUserTable();}
+  catch(e){alert('Gagal hapus: '+e.message);}
 }
 
 // ══════════════════════════════════════════════
 //  RESET PASSWORD
 // ══════════════════════════════════════════════
-function openReset(userId, name) {
-  resetTargetId = userId;
-  document.getElementById('resetUserLabel').value = name;
-  document.getElementById('resetNewPass').value   = '';
-  document.getElementById('resetConfPass').value  = '';
+function openReset(userId,name){
+  resetTargetId=userId;
+  document.getElementById('resetUserLabel').value=name;
+  document.getElementById('resetNewPass').value='';
+  document.getElementById('resetConfPass').value='';
   clearAlert('resetAlert');
   document.getElementById('resetModal').classList.add('open');
 }
 
-async function doResetPassword() {
-  const np = document.getElementById('resetNewPass').value;
-  const cp = document.getElementById('resetConfPass').value;
-  if (!np || !cp)   { showAlert('resetAlert', 'Semua field wajib diisi.'); return; }
-  if (np.length < 6){ showAlert('resetAlert', 'Password minimal 6 karakter.'); return; }
-  if (np !== cp)    { showAlert('resetAlert', 'Konfirmasi password tidak cocok.'); return; }
-  const btn = document.getElementById('btnResetPass');
-  btn.textContent = 'Menyimpan...'; btn.disabled = true;
-  try {
-    await sb(`users?id=eq.${resetTargetId}`, { method: 'PATCH', body: JSON.stringify({ password: np }) });
-    showAlert('resetAlert', 'Password berhasil direset!', 'success');
-    setTimeout(() => closeModal('resetModal'), 1200);
-  } catch (e) { showAlert('resetAlert', 'Gagal reset: ' + e.message); }
-  finally { btn.textContent = 'Simpan Password'; btn.disabled = false; }
+async function doResetPassword(){
+  const np=document.getElementById('resetNewPass').value;
+  const cp=document.getElementById('resetConfPass').value;
+  if(!np||!cp){showAlert('resetAlert','Semua field wajib diisi.');return;}
+  if(np.length<6){showAlert('resetAlert','Password minimal 6 karakter.');return;}
+  if(np!==cp){showAlert('resetAlert','Konfirmasi password tidak cocok.');return;}
+  const btn=document.getElementById('btnResetPass');
+  btn.textContent='Menyimpan...'; btn.disabled=true;
+  try{
+    await sb(`users?id=eq.${resetTargetId}`,{method:'PATCH',body:JSON.stringify({password:np})});
+    showAlert('resetAlert','Password berhasil direset!','success');
+    setTimeout(()=>closeModal('resetModal'),1200);
+  }catch(e){showAlert('resetAlert','Gagal reset: '+e.message);}
+  finally{btn.textContent='Simpan Password';btn.disabled=false;}
 }
 
 // ══════════════════════════════════════════════
 //  EXPORT CSV
 // ══════════════════════════════════════════════
-function exportToCSV() {
-  if (!tickets.length) { alert('Tidak ada data untuk diexport!'); return; }
-  let csv = "\ufeffNo Tiket,Judul,Pelapor,Tgl Dibuat,Tgl Selesai,Prioritas,Status,Deskripsi\n";
-  tickets.forEach(t => {
-    csv += `"${t.id}","${t.title}","${t.reporter}","${t.date}","${t.end_date||'-'}","${t.priority}","${t.status}","${(t.desc||'').replace(/"/g,'""')}"\n`;
+function exportToCSV(){
+  if(!tickets.length){alert('Tidak ada data!');return;}
+  let csv="\ufeffNo Tiket,Judul,Kategori,Pelapor,Tgl Dibuat,Tgl Selesai,Prioritas,Status,Deskripsi\n";
+  tickets.forEach(t=>{
+    csv+=`"${t.id}","${t.title}","${t.category||'-'}","${t.reporter}","${t.date}","${t.end_date||'-'}","${t.priority}","${t.status}","${(t.desc||'').replace(/"/g,'""')}"\n`;
   });
-  const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),
-    download: 'Ticketing_Report.csv'
+  const a=Object.assign(document.createElement('a'),{
+    href:URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),
+    download:`Ticketing_${new Date().toISOString().slice(0,10)}.csv`
   });
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+// ══════════════════════════════════════════════
+//  EXPORT PDF
+// ══════════════════════════════════════════════
+function exportToPDF(){
+  if(!tickets.length){alert('Tidak ada data!');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const today=new Date().toLocaleDateString('id-ID',{dateStyle:'long'});
+
+  // Header
+  doc.setFillColor(26,26,24);
+  doc.rect(0,0,297,18,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(13);
+  doc.setFont('helvetica','bold');
+  doc.text('TICKETING DASHBOARD — LAPORAN',14,12);
+  doc.setFontSize(9);
+  doc.setFont('helvetica','normal');
+  doc.text(`Dicetak: ${today}`,240,12);
+
+  // Stats summary
+  const c={total:tickets.length,open:0,inprogress:0,resolved:0,closed:0};
+  tickets.forEach(t=>{
+    if(t.status==='open') c.open++;
+    if(t.status==='in progress') c.inprogress++;
+    if(t.status==='resolved') c.resolved++;
+    if(t.status==='closed') c.closed++;
+  });
+  doc.setTextColor(26,26,24);
+  doc.setFontSize(9);
+  doc.setFont('helvetica','normal');
+  doc.text(`Total: ${c.total}  |  Open: ${c.open}  |  In Progress: ${c.inprogress}  |  Resolved: ${c.resolved}  |  Closed: ${c.closed}`,14,26);
+
+  // Table header
+  const cols=[{h:'No Tiket',w:22},{h:'Judul',w:70},{h:'Kategori',w:28},{h:'Pelapor',w:28},{h:'Tgl Dibuat',w:24},{h:'Tgl Selesai',w:24},{h:'Prioritas',w:20},{h:'Status',w:22}];
+  let x=14,y=32;
+  doc.setFillColor(241,239,232);
+  doc.rect(x,y,283,7,'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(8);
+  doc.setTextColor(136,135,128);
+  cols.forEach(col=>{doc.text(col.h,x+2,y+5);x+=col.w;});
+
+  // Table rows
+  y+=9;
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  tickets.forEach((t,i)=>{
+    if(y>190){doc.addPage();y=14;}
+    if(i%2===0){doc.setFillColor(249,248,245);doc.rect(14,y-4,283,7,'F');}
+    doc.setTextColor(26,26,24);
+    x=14;
+    const vals=[t.id,t.title.substring(0,38),t.category||'-',t.reporter.substring(0,16),t.date,t.end_date||'-',t.priority,t.status];
+    vals.forEach((v,vi)=>{doc.text(String(v),x+2,y);x+=cols[vi].w;});
+    y+=7;
+  });
+
+  // Footer
+  doc.setTextColor(136,135,128);
+  doc.setFontSize(8);
+  doc.text('© 2026 RMDK IT',14,200);
+
+  doc.save(`Laporan_Tiket_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 </script>
 </body>
