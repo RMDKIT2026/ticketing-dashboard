@@ -177,6 +177,12 @@
   .tab-btn.active{color:#1a1a18;border-bottom-color:#1a1a18;}
   .tab-content{display:none;} .tab-content.active{display:block;}
 
+  /* PASSWORD TOGGLE */
+  .pw-wrap{position:relative;}
+  .pw-wrap input{padding-right:38px;}
+  .pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888780;font-size:16px;padding:2px;}
+  .pw-toggle:hover{color:#1a1a18;}
+
   /* PORTAL PELAPOR CARDS */
   .portal-empty{text-align:center;padding:3rem;color:#888780;background:#fff;border-radius:12px;border:0.5px solid #d3d1c7;}
   .portal-empty i{font-size:40px;display:block;margin-bottom:12px;opacity:0.4;}
@@ -220,7 +226,10 @@
     <div class="field"><label>Username</label>
       <input id="lUsername" placeholder="Masukkan username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"/></div>
     <div class="field"><label>Password</label>
-      <input id="lPassword" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div style="position:relative">
+        <input id="lPassword" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding-right:40px"/>
+        <button type="button" onclick="togglePw('lPassword','eyeLPassword')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888780;font-size:16px"><i class="ti ti-eye" id="eyeLPassword"></i></button>
+      </div></div>
     <button class="btn-save" style="width:100%;margin-top:4px;padding:10px" id="btnLogin" onclick="doLogin()">
       <i class="ti ti-login" style="margin-right:6px"></i>Masuk</button>
     <div class="auth-footer">Ingin lihat saja? <a href="#" onclick="guestAccess()" style="color:#1a1a18;font-weight:500">Lihat sebagai tamu</a></div>
@@ -392,7 +401,10 @@
           <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Email</label>
             <input id="auEmail" type="email" placeholder="email@perusahaan.com"/></div>
           <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Password *</label>
-            <input id="auPassword" type="password" placeholder="min. 6 karakter"/></div>
+            <div style="position:relative">
+              <input id="auPassword" type="password" placeholder="min. 6 karakter" style="width:100%;padding-right:36px"/>
+              <button type="button" onclick="togglePw('auPassword','eyeAU')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888780;font-size:15px"><i class="ti ti-eye" id="eyeAU"></i></button>
+            </div></div>
         </div>
         <div style="margin-bottom:10px">
           <label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Role</label>
@@ -435,8 +447,16 @@
     <h3><i class="ti ti-key"></i> Reset Password</h3>
     <div id="resetAlert"></div>
     <div class="field"><label>User</label><input id="resetUserLabel" disabled/></div>
-    <div class="field"><label>Password Baru *</label><input id="resetNewPass" type="password" placeholder="min. 6 karakter"/></div>
-    <div class="field"><label>Konfirmasi Password *</label><input id="resetConfPass" type="password" placeholder="ulangi password baru"/></div>
+    <div class="field"><label>Password Baru *</label>
+      <div style="position:relative">
+        <input id="resetNewPass" type="password" placeholder="min. 6 karakter" style="width:100%;padding-right:40px"/>
+        <button type="button" onclick="togglePw('resetNewPass','eyeNew')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888780;font-size:16px"><i class="ti ti-eye" id="eyeNew"></i></button>
+      </div></div>
+    <div class="field"><label>Konfirmasi Password *</label>
+      <div style="position:relative">
+        <input id="resetConfPass" type="password" placeholder="ulangi password baru" style="width:100%;padding-right:40px"/>
+        <button type="button" onclick="togglePw('resetConfPass','eyeConf')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888780;font-size:16px"><i class="ti ti-eye" id="eyeConf"></i></button>
+      </div></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('resetModal')">Batal</button>
       <button class="btn-save" id="btnResetPass" onclick="doResetPassword()">Simpan Password</button>
@@ -542,7 +562,35 @@
       <div class="log-title"><i class="ti ti-timeline"></i> Riwayat Update</div>
       <div class="log-list" id="pdLogList"><div class="log-empty">Memuat...</div></div>
     </div>
-    <div class="modal-footer">
+
+    <!-- KONFIRMASI PANEL (muncul saat status resolved) -->
+    <div id="pdConfirmPanel" style="display:none;margin-top:1rem;background:#EAF3DE;border:0.5px solid #b7dca0;border-radius:10px;padding:14px 16px;">
+      <div style="font-size:13px;font-weight:500;color:#3B6D11;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <i class="ti ti-circle-check"></i> Teknisi telah menyelesaikan tiket ini
+      </div>
+      <div style="font-size:12px;color:#5a8040;margin-bottom:12px;line-height:1.5">
+        Apakah masalah Anda sudah benar-benar terselesaikan? Jika ya, klik <strong>Konfirmasi Selesai</strong>. 
+        Jika belum, klik <strong>Buka Kembali</strong> dan jelaskan kendala yang masih ada.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-save" style="background:#3B6D11" onclick="confirmResolved()">
+          <i class="ti ti-circle-check" style="margin-right:4px"></i>Konfirmasi Selesai
+        </button>
+        <button class="btn-danger" onclick="openDeclineForm()">
+          <i class="ti ti-refresh" style="margin-right:4px"></i>Buka Kembali
+        </button>
+      </div>
+      <!-- Form decline/reopen -->
+      <div id="pdDeclineForm" style="display:none;margin-top:12px;border-top:0.5px solid #b7dca0;padding-top:12px">
+        <label style="font-size:12px;color:#3B6D11;display:block;margin-bottom:6px">Jelaskan kenapa tiket perlu dibuka kembali:</label>
+        <textarea id="pdDeclineMsg" placeholder="Contoh: Printer masih belum bisa print setelah dicoba..." style="width:100%;font-size:13px;padding:8px 10px;border-radius:8px;border:0.5px solid #b7dca0;outline:none;resize:vertical;min-height:70px;font-family:system-ui,sans-serif;margin-bottom:8px;background:#fff"></textarea>
+        <button class="btn-save" style="background:#993C1D" onclick="declineResolved()">
+          <i class="ti ti-send" style="margin-right:4px"></i>Kirim & Buka Kembali
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-footer" id="pdModalFooter">
       <button class="btn-cancel" onclick="closeModal('portalDetailModal')">Tutup</button>
     </div>
   </div>
@@ -1390,6 +1438,28 @@ async function openPortalDetail(id){
   document.getElementById('pdAttachment').innerHTML=t.attachment_url
     ?`<div style="margin-top:10px;margin-bottom:4px;font-size:12px;color:#888780"><i class="ti ti-photo"></i> Foto Kerusakan</div>
       <img src="${t.attachment_url}" style="max-width:100%;max-height:220px;border-radius:8px;border:0.5px solid #d3d1c7;cursor:pointer" onclick="viewImg('${t.attachment_url}')" title="Klik untuk perbesar"/>`:'';
+  // Tombol konfirmasi pelapor jika status resolved
+  const modalFooter = document.getElementById('pdModalFooter');
+  if(t.status === 'resolved'){
+    modalFooter.innerHTML = `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%;justify-content:space-between">
+        <div style="font-size:12px;color:#888780;background:#FAEEDA;padding:6px 12px;border-radius:8px;flex:1">
+          <i class="ti ti-clock" style="margin-right:4px"></i>Tiket selesai — mohon konfirmasi atau buka kembali jika ada masalah
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="btnReopen" class="btn-danger" style="font-size:13px;padding:7px 12px" onclick="reopenTicket('${t.id}')">
+            <i class="ti ti-rotate" style="margin-right:4px"></i>Kembalikan / Reopen
+          </button>
+          <button id="btnConfirmDone" class="btn-save" style="background:#3B6D11;font-size:13px;padding:7px 12px" onclick="confirmTicketDone('${t.id}')">
+            <i class="ti ti-circle-check" style="margin-right:4px"></i>Konfirmasi Selesai
+          </button>
+        </div>
+      </div>
+      <button class="btn-cancel" onclick="closeModal('portalDetailModal')">Tutup</button>`;
+  } else {
+    modalFooter.innerHTML = `<button class="btn-cancel" onclick="closeModal('portalDetailModal')">Tutup</button>`;
+  }
+
   document.getElementById('portalDetailModal').classList.add('open');
   // Load logs
   document.getElementById('pdLogList').innerHTML='<div class="log-empty">Memuat...</div>';
@@ -1528,6 +1598,59 @@ function exportToPDF(){
   });
   doc.setTextColor(136,135,128);doc.setFontSize(8);doc.text('© 2026 RMDK IT',14,200);
   doc.save(`Laporan_Tiket_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+// ══════════════════════════════════════════════
+//  PASSWORD TOGGLE
+// ══════════════════════════════════════════════
+function togglePw(inputId, eyeId){
+  const inp = document.getElementById(inputId);
+  const ico = document.getElementById(eyeId);
+  if(!inp) return;
+  if(inp.type === 'password'){
+    inp.type = 'text';
+    if(ico) ico.className = 'ti ti-eye-off';
+  } else {
+    inp.type = 'password';
+    if(ico) ico.className = 'ti ti-eye';
+  }
+}
+
+// ══════════════════════════════════════════════
+//  PORTAL: KONFIRMASI PELAPOR
+// ══════════════════════════════════════════════
+async function confirmTicketDone(ticketId){
+  if(!confirm('Konfirmasi tiket sudah selesai? Status akan berubah ke Closed.')) return;
+  const btn = document.getElementById('btnConfirmDone');
+  btn.textContent = 'Memproses...'; btn.disabled = true;
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    await sb(`tickets?id=eq.${encodeURIComponent(ticketId)}`, {
+      method:'PATCH',
+      body: JSON.stringify({status:'closed', end_date: today})
+    });
+    await addLog(ticketId, `Pelapor mengkonfirmasi tiket selesai. Status: resolved → closed.`, 'user');
+    closeModal('portalDetailModal');
+    await fetchPortalTickets();
+  } catch(e){ alert('Gagal konfirmasi: ' + e.message); }
+  finally{ if(btn){ btn.textContent='✅ Konfirmasi Selesai'; btn.disabled=false; } }
+}
+
+async function reopenTicket(ticketId){
+  const reason = prompt('Alasan pembukaan kembali tiket (wajib diisi):');
+  if(!reason || !reason.trim()) return;
+  const btn = document.getElementById('btnReopen');
+  btn.textContent = 'Memproses...'; btn.disabled = true;
+  try{
+    await sb(`tickets?id=eq.${encodeURIComponent(ticketId)}`, {
+      method:'PATCH',
+      body: JSON.stringify({status:'open', end_date:'-'})
+    });
+    await addLog(ticketId, `Pelapor membuka kembali tiket. Alasan: ${reason.trim()} [Status: resolved → open]`, 'user');
+    closeModal('portalDetailModal');
+    await fetchPortalTickets();
+  } catch(e){ alert('Gagal reopen: ' + e.message); }
+  finally{ if(btn){ btn.textContent='↩ Kembalikan / Reopen'; btn.disabled=false; } }
 }
 
 // ══════════════════════════════════════════════
