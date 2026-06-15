@@ -177,6 +177,22 @@
   .tab-btn.active{color:#1a1a18;border-bottom-color:#1a1a18;}
   .tab-content{display:none;} .tab-content.active{display:block;}
 
+  /* PORTAL PELAPOR CARDS */
+  .portal-empty{text-align:center;padding:3rem;color:#888780;background:#fff;border-radius:12px;border:0.5px solid #d3d1c7;}
+  .portal-empty i{font-size:40px;display:block;margin-bottom:12px;opacity:0.4;}
+  .ticket-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;}
+  .ticket-card{background:#fff;border:0.5px solid #d3d1c7;border-radius:12px;padding:16px;cursor:pointer;transition:all 0.15s;position:relative;}
+  .ticket-card:hover{border-color:#1a1a18;box-shadow:0 4px 12px rgba(0,0,0,0.06);}
+  .ticket-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px;}
+  .ticket-card-id{font-family:monospace;font-size:11px;color:#888780;}
+  .ticket-card-title{font-size:14px;font-weight:500;color:#1a1a18;margin-bottom:6px;line-height:1.4;}
+  .ticket-card-desc{font-size:12px;color:#888780;margin-bottom:12px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .ticket-card-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+  .ticket-card-date{font-size:11px;color:#aaa;display:flex;align-items:center;gap:4px;}
+  .ticket-card-badges{display:flex;gap:6px;flex-wrap:wrap;}
+  .ticket-card-photo{width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:10px;border:0.5px solid #e8e7e2;}
+  .portal-stat-card{background:#fff;border:0.5px solid #d3d1c7;border-radius:8px;padding:14px 16px;}
+
   @media(max-width:768px){
     .container{padding:1rem;}
     .filters input[type=text]{min-width:100%;}
@@ -448,6 +464,90 @@
   </div>
 </div>
 
+<!-- ══════════════════════════════════════
+     PORTAL PELAPOR
+══════════════════════════════════════ -->
+<div class="container" id="portalPage" style="display:none">
+  <!-- Top Bar Portal -->
+  <div class="top-bar">
+    <div>
+      <div class="page-title"><i class="ti ti-ticket"></i> Portal Pelapor</div>
+      <div class="page-sub">Lihat dan kelola tiket yang Anda buat</div>
+    </div>
+    <div class="action-btns">
+      <div class="user-chip" id="portalUserChip"></div>
+      <button class="btn-new" onclick="openPortalNew()"><i class="ti ti-plus"></i> Buat Tiket</button>
+      <button class="btn-logout" onclick="doLogout()"><i class="ti ti-logout"></i> Keluar</button>
+    </div>
+  </div>
+
+  <!-- Stats Portal -->
+  <div class="stats-grid" id="portalStats"></div>
+
+  <!-- Filter Portal -->
+  <div class="filters">
+    <i class="ti ti-filter" style="color:#888780;font-size:16px"></i>
+    <input type="text" id="portalQ" placeholder="Cari tiket..." oninput="renderPortal()"/>
+    <select id="portalFStatus" onchange="renderPortal()">
+      <option value="">Semua status</option>
+      <option>open</option><option>in progress</option><option>pending</option>
+      <option>resolved</option><option>closed</option>
+    </select>
+  </div>
+
+  <!-- Tiket Cards -->
+  <div id="portalTicketList"></div>
+
+  <div class="footer">© 2026 RMDK IT — Helpdesk</div>
+</div>
+
+<!-- MODAL: BUAT TIKET (PORTAL) -->
+<div class="modal-bg" id="portalNewModal">
+  <div class="modal">
+    <h3><i class="ti ti-ticket"></i> Buat Tiket Baru</h3>
+    <div class="field"><label>Judul permintaan *</label>
+      <input id="pnTitle" placeholder="Jelaskan masalah secara singkat"/></div>
+    <div class="field"><label>Deskripsi *</label>
+      <textarea id="pnDesc" placeholder="Jelaskan detail masalah yang dialami..." style="min-height:100px"></textarea></div>
+    <div class="field field-row">
+      <div><label>Kategori</label><select id="pnCategory"></select></div>
+      <div><label>Prioritas</label>
+        <select id="pnPriority"><option>low</option><option selected>normal</option><option>high</option></select></div>
+    </div>
+    <div class="field">
+      <label>Foto / Attachment (opsional)</label>
+      <div class="upload-area" id="portalUploadArea" onclick="document.getElementById('portalFileInput').click()">
+        <i class="ti ti-photo-up"></i>Klik untuk upload foto
+        <div style="font-size:11px;margin-top:4px;color:#aaa">JPG, PNG — dikompres otomatis</div>
+      </div>
+      <input type="file" id="portalFileInput" accept="image/*" style="display:none" onchange="handlePortalFile(event)"/>
+      <div class="upload-progress" id="portalUploadProgress"><i class="ti ti-loader"></i> Mengompres...</div>
+      <div id="portalAttachPreview"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('portalNewModal')">Batal</button>
+      <button class="btn-save" id="btnPortalSave" onclick="savePortalTicket()">Kirim Tiket</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DETAIL TIKET (PORTAL) -->
+<div class="modal-bg" id="portalDetailModal">
+  <div class="modal modal-wide">
+    <h3 id="pdTitle"></h3>
+    <div id="pdBody"></div>
+    <div id="pdAttachment"></div>
+    <!-- Activity Log read-only untuk pelapor -->
+    <div class="log-section">
+      <div class="log-title"><i class="ti ti-timeline"></i> Riwayat Update</div>
+      <div class="log-list" id="pdLogList"><div class="log-empty">Memuat...</div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('portalDetailModal')">Tutup</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════
 //  CONFIG
@@ -475,17 +575,21 @@ async function sbUpload(filePath,blob){
 }
 
 // ══════════════════════════════════════════════
-//  EMAIL via RESEND
+//  EMAIL via SUPABASE EDGE FUNCTION
 // ══════════════════════════════════════════════
 async function sendEmail(to,subject,html){
   if(!to||!to.includes('@')) return false;
   try{
-    const res=await fetch('https://api.resend.com/emails',{
+    const res=await fetch(`${SB_URL}/functions/v1/send-email`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+RESEND_KEY},
-      body:JSON.stringify({from:EMAIL_FROM,to:[to],subject,html})
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+SB_KEY
+      },
+      body:JSON.stringify({to,subject,html})
     });
-    return res.ok;
+    if(!res.ok){const e=await res.json().catch(()=>({}));console.warn('Email gagal:',e);return false;}
+    return true;
   }catch(e){console.warn('Email gagal:',e);return false;}
 }
 
@@ -605,8 +709,9 @@ async function doLogin(){
 }
 function guestAccess(){currentUser=null;enterDashboard();}
 function doLogout(){
-  currentUser=null;tickets=[];
+  currentUser=null;tickets=[];portalTickets=[];
   document.getElementById('dashPage').style.display='none';
+  document.getElementById('portalPage').style.display='none';
   document.getElementById('authPage').style.display='flex';
   document.getElementById('lUsername').value='';
   document.getElementById('lPassword').value='';
@@ -617,7 +722,19 @@ function doLogout(){
 //  ENTER DASHBOARD
 // ══════════════════════════════════════════════
 async function enterDashboard(){
+  // Role user -> portal pelapor, lainnya -> dashboard penuh
+  if(currentUser && currentUser.role==='user'){
+    try{
+      const all=await sb('tickets?select=id');
+      const nums=all.map(t=>parseInt((t.id||'').replace('TKT-',''))).filter(n=>!isNaN(n));
+      nextNum=nums.length?Math.max(...nums)+1:1;
+    }catch(e){nextNum=1;}
+    await enterPortal();
+    return;
+  }
+  // Dashboard penuh untuk admin, teknisi, tamu
   document.getElementById('authPage').style.display='none';
+  document.getElementById('portalPage').style.display='none';
   document.getElementById('dashPage').style.display='block';
   const chip=document.getElementById('userChip');
   if(currentUser){
@@ -638,7 +755,7 @@ async function enterDashboard(){
 async function fetchCategories(){
   try{
     categories=await sb('categories?order=name.asc');
-    ['nCategory','fCategory','dCategory'].forEach(sid=>{
+    ['nCategory','fCategory','dCategory','pnCategory'].forEach(sid=>{
       const el=document.getElementById(sid);if(!el)return;
       const cur=el.value;
       const isFilter=sid==='fCategory';
@@ -1173,6 +1290,187 @@ async function doResetPassword(){
     setTimeout(()=>closeModal('resetModal'),1200);
   }catch(e){showAlert('resetAlert','Gagal reset: '+e.message);}
   finally{btn.textContent='Simpan Password';btn.disabled=false;}
+}
+
+// ══════════════════════════════════════════════
+//  PORTAL PELAPOR
+// ══════════════════════════════════════════════
+let portalTickets=[], portalPendingFile=null;
+
+async function enterPortal(){
+  document.getElementById('authPage').style.display='none';
+  document.getElementById('dashPage').style.display='none';
+  document.getElementById('portalPage').style.display='block';
+
+  const chip=document.getElementById('portalUserChip');
+  chip.innerHTML=`<i class="ti ti-user" style="font-size:14px"></i> ${currentUser.full_name} <span class="role-badge role-user">Pelapor</span>`;
+
+  await fetchCategories();
+  await fetchPortalTickets();
+}
+
+async function fetchPortalTickets(){
+  document.getElementById('portalTicketList').innerHTML=
+    '<div style="text-align:center;padding:2rem;color:#888780"><i class="ti ti-loader" style="font-size:24px;display:block;margin-bottom:8px"></i>Memuat tiket...</div>';
+  try{
+    // Ambil tiket milik pelapor ini saja (by reporter name)
+    portalTickets=await sb(`tickets?reporter=eq.${encodeURIComponent(currentUser.full_name)}&order=created_at.desc`);
+    renderPortal();
+  }catch(e){
+    document.getElementById('portalTicketList').innerHTML=
+      `<div class="portal-empty"><i class="ti ti-wifi-off"></i>Gagal memuat: ${e.message}</div>`;
+  }
+}
+
+function renderPortal(){
+  const q=document.getElementById('portalQ').value.toLowerCase();
+  const fs=document.getElementById('portalFStatus').value;
+  const filtered=portalTickets.filter(t=>
+    (!q||(t.title||'').toLowerCase().includes(q)||(t.id||'').toLowerCase().includes(q))&&
+    (!fs||t.status===fs)
+  );
+
+  // Stats portal
+  const c={total:portalTickets.length,open:0,inprogress:0,resolved:0};
+  portalTickets.forEach(t=>{
+    if(t.status==='open')c.open++;
+    if(t.status==='in progress')c.inprogress++;
+    if(t.status==='resolved')c.resolved++;
+  });
+  document.getElementById('portalStats').innerHTML=`
+    <div class="stat-card portal-stat-card"><div class="stat-label"><i class="ti ti-list"></i>Total tiket saya</div><div class="stat-num">${c.total}</div></div>
+    <div class="stat-card portal-stat-card"><div class="stat-label"><i class="ti ti-circle-dot"></i>Open</div><div class="stat-num amber">${c.open}</div></div>
+    <div class="stat-card portal-stat-card"><div class="stat-label"><i class="ti ti-progress"></i>In Progress</div><div class="stat-num blue">${c.inprogress}</div></div>
+    <div class="stat-card portal-stat-card"><div class="stat-label"><i class="ti ti-circle-check"></i>Resolved</div><div class="stat-num green">${c.resolved}</div></div>`;
+
+  const list=document.getElementById('portalTicketList');
+  if(!filtered.length){
+    list.innerHTML=`<div class="portal-empty">
+      <i class="ti ti-ticket-off"></i>
+      ${portalTickets.length===0?'Anda belum membuat tiket apapun.<br><br><button class="btn-new" onclick="openPortalNew()" style="margin:auto"><i class="ti ti-plus"></i> Buat Tiket Pertama</button>':'Tidak ada tiket yang cocok dengan filter.'}
+    </div>`;
+    return;
+  }
+
+  const sClass=s=>'s-'+(s||'open').replace(/\s+/g,'-');
+  list.innerHTML=`<div class="ticket-cards">${filtered.map(t=>`
+    <div class="ticket-card" onclick="openPortalDetail('${t.id}')">
+      ${t.attachment_url?`<img src="${t.attachment_url}" class="ticket-card-photo" alt="foto"/>` :''}
+      <div class="ticket-card-header">
+        <span class="ticket-card-id">${t.id}</span>
+        <span class="badge ${sClass(t.status)}">${t.status}</span>
+      </div>
+      <div class="ticket-card-title">${t.title}</div>
+      <div class="ticket-card-desc">${t.desc||'Tidak ada deskripsi'}</div>
+      <div class="ticket-card-footer">
+        <span class="ticket-card-date"><i class="ti ti-calendar" style="font-size:11px"></i>${t.date}</span>
+        <div class="ticket-card-badges">
+          <span class="cat-badge">${t.category||'-'}</span>
+          <span class="badge p-${(t.priority||'normal').toLowerCase()}">${t.priority}</span>
+        </div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+async function openPortalDetail(id){
+  const t=portalTickets.find(x=>x.id===id);
+  if(!t)return;
+  document.getElementById('pdTitle').textContent=t.title;
+  document.getElementById('pdBody').innerHTML=`
+    <div class="detail-row"><span>No Tiket</span><span class="ticket-id">${t.id}</span></div>
+    <div class="detail-row"><span>Kategori</span><span class="cat-badge">${t.category||'-'}</span></div>
+    <div class="detail-row"><span>Deskripsi</span><span style="max-width:60%;text-align:right">${t.desc||'-'}</span></div>
+    <div class="detail-row"><span>Tanggal Dibuat</span><span>${t.date}</span></div>
+    <div class="detail-row"><span>Tanggal Selesai</span><span>${t.end_date||'-'}</span></div>
+    <div class="detail-row"><span>Prioritas</span><span class="badge p-${(t.priority||'normal').toLowerCase()}">${t.priority}</span></div>
+    <div class="detail-row"><span>Status</span><span class="badge s-${(t.status||'open').replace(/\s+/g,'-')}">${t.status}</span></div>`;
+  document.getElementById('pdAttachment').innerHTML=t.attachment_url
+    ?`<div style="margin-top:10px;margin-bottom:4px;font-size:12px;color:#888780"><i class="ti ti-photo"></i> Foto Kerusakan</div>
+      <img src="${t.attachment_url}" style="max-width:100%;max-height:220px;border-radius:8px;border:0.5px solid #d3d1c7;cursor:pointer" onclick="viewImg('${t.attachment_url}')" title="Klik untuk perbesar"/>`:'';
+  document.getElementById('portalDetailModal').classList.add('open');
+  // Load logs
+  document.getElementById('pdLogList').innerHTML='<div class="log-empty">Memuat...</div>';
+  try{
+    const logs=await sb(`ticket_logs?ticket_id=eq.${encodeURIComponent(id)}&order=created_at.asc`);
+    document.getElementById('pdLogList').innerHTML=logs.length?logs.map(l=>`
+      <div class="log-item ${l.role||'system'}">
+        <div class="log-meta">
+          <span class="log-name">${l.full_name||l.username}</span>
+          <span class="role-badge role-${l.role||'system'}">${l.role||'system'}</span>
+          <span>${l.created_at?new Date(l.created_at).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}):''}</span>
+        </div>
+        <div class="log-msg">${l.message}</div>
+      </div>`).join(''):'<div class="log-empty">Belum ada activity log.</div>';
+  }catch(e){document.getElementById('pdLogList').innerHTML=`<div class="log-empty">Gagal: ${e.message}</div>`;}
+}
+
+function openPortalNew(){
+  document.getElementById('portalAttachPreview').innerHTML='';
+  document.getElementById('portalUploadArea').innerHTML='<i class="ti ti-photo-up"></i>Klik untuk upload foto<div style="font-size:11px;margin-top:4px;color:#aaa">JPG, PNG — dikompres otomatis</div>';
+  portalPendingFile=null;
+  ['pnTitle','pnDesc'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('portalNewModal').classList.add('open');
+}
+
+function handlePortalFile(e){
+  const file=e.target.files[0];if(!file)return;
+  document.getElementById('portalUploadProgress').style.display='block';
+  compressImage(file,800,0.7,blob=>{
+    document.getElementById('portalUploadProgress').style.display='none';
+    portalPendingFile={blob,name:file.name.replace(/[^a-zA-Z0-9._-]/g,'_')};
+    const url=URL.createObjectURL(blob);
+    document.getElementById('portalAttachPreview').innerHTML=
+      `<img src="${url}" style="max-width:100%;max-height:140px;border-radius:8px;border:0.5px solid #d3d1c7;margin-top:8px"/>
+       <div style="font-size:11px;color:#888780;margin-top:4px"><i class="ti ti-check" style="color:#3B6D11"></i> Foto siap (${(blob.size/1024).toFixed(0)}KB)</div>`;
+    document.getElementById('portalUploadArea').innerHTML='<i class="ti ti-photo-check" style="color:#3B6D11"></i> Foto dipilih';
+    e.target.value='';
+  });
+}
+
+async function savePortalTicket(){
+  const title=document.getElementById('pnTitle').value.trim();
+  const desc=document.getElementById('pnDesc').value.trim();
+  if(!title){alert('Judul permintaan wajib diisi.');return;}
+  if(!desc){alert('Deskripsi wajib diisi.');return;}
+  const btn=document.getElementById('btnPortalSave');
+  btn.textContent='Mengirim...';btn.disabled=true;
+  const today=new Date().toISOString().slice(0,10);
+  try{
+    let attachment_url=null;
+    if(portalPendingFile){
+      btn.textContent='Upload foto...';
+      const path=`${Date.now()}_${portalPendingFile.name}`;
+      attachment_url=await sbUpload(path,portalPendingFile.blob);
+    }
+    const t={
+      id:'TKT-'+pad(nextNum++),title,desc,
+      reporter:currentUser.full_name,
+      reporter_email:currentUser.email||null,
+      date:today,end_date:'-',
+      priority:document.getElementById('pnPriority').value,
+      status:'open',
+      category:document.getElementById('pnCategory').value||'Umum',
+      attachment_url
+    };
+    await sb('tickets',{method:'POST',body:JSON.stringify(t)});
+    await addLog(t.id,`Tiket dibuat oleh ${currentUser.full_name} melalui portal pelapor.`,'system');
+
+    // Kirim email notifikasi
+    if(currentUser.email){
+      btn.textContent='Kirim notifikasi...';
+      await emailTicketCreated(t);
+    }
+
+    closeModal('portalNewModal');
+    portalPendingFile=null;
+    document.getElementById('portalAttachPreview').innerHTML='';
+    await fetchPortalTickets();
+    // Refresh nextNum dari semua tiket
+    const allTickets=await sb('tickets?select=id&order=created_at.desc');
+    const nums=allTickets.map(t=>parseInt((t.id||'').replace('TKT-',''))).filter(n=>!isNaN(n));
+    nextNum=nums.length?Math.max(...nums)+1:1;
+  }catch(e){alert('Gagal kirim tiket: '+e.message);}
+  finally{btn.textContent='Kirim Tiket';btn.disabled=false;}
 }
 
 // ══════════════════════════════════════════════
