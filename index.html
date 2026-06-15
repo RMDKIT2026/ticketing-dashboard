@@ -703,13 +703,16 @@ async function doLogin(){
   try{
     const rows=await sb(`users?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=id,username,full_name,role,email`);
     if(!rows.length){showAlert('loginAlert','Username atau password salah.');return;}
-    currentUser=rows[0];enterDashboard();
+    currentUser=rows[0];
+    localStorage.setItem('ticketing_session', JSON.stringify(currentUser));
+    enterDashboard();
   }catch(e){showAlert('loginAlert','Koneksi error: '+e.message);}
   finally{btn.innerHTML='<i class="ti ti-login" style="margin-right:6px"></i>Masuk';btn.disabled=false;}
 }
 function guestAccess(){currentUser=null;enterDashboard();}
 function doLogout(){
   currentUser=null;tickets=[];portalTickets=[];
+  localStorage.removeItem('ticketing_session');
   document.getElementById('dashPage').style.display='none';
   document.getElementById('portalPage').style.display='none';
   document.getElementById('authPage').style.display='flex';
@@ -1526,6 +1529,33 @@ function exportToPDF(){
   doc.setTextColor(136,135,128);doc.setFontSize(8);doc.text('© 2026 RMDK IT',14,200);
   doc.save(`Laporan_Tiket_${new Date().toISOString().slice(0,10)}.pdf`);
 }
+
+// ══════════════════════════════════════════════
+//  AUTO RESTORE SESSION
+// ══════════════════════════════════════════════
+(async function initSession(){
+  try{
+    const saved = localStorage.getItem('ticketing_session');
+    if(saved){
+      currentUser = JSON.parse(saved);
+      // Verifikasi user masih ada di database
+      const rows = await sb(`users?id=eq.${currentUser.id}&select=id,username,full_name,role,email`);
+      if(rows.length){
+        currentUser = rows[0];
+        localStorage.setItem('ticketing_session', JSON.stringify(currentUser));
+        await enterDashboard();
+      } else {
+        // User tidak ditemukan, hapus session
+        localStorage.removeItem('ticketing_session');
+        currentUser = null;
+      }
+    }
+  } catch(e){
+    console.warn('Gagal restore session:', e);
+    localStorage.removeItem('ticketing_session');
+    currentUser = null;
+  }
+})();
 </script>
 </body>
 </html>
