@@ -270,6 +270,7 @@
       <option value="">Semua prioritas</option><option>low</option><option>normal</option><option>high</option>
     </select>
     <select id="fCategory" onchange="renderPage()"><option value="">Semua kategori</option></select>
+    <select id="fDivision" onchange="renderPage()" style="display:none"><option value="">Semua divisi</option></select>
     <div class="filter-date-group">
       <i class="ti ti-calendar" style="font-size:14px"></i>
       <input type="date" id="fDateFrom" onchange="renderPage()" title="Dari tanggal"/>
@@ -316,6 +317,8 @@
       <div><label>Nama pelapor *</label><input id="nReporter" placeholder="Nama karyawan"/></div>
       <div><label>Email pelapor</label><input id="nReporterEmail" type="email" placeholder="email@perusahaan.com"/></div>
     </div>
+    <div class="field"><label>Tujuan Divisi *</label>
+      <select id="nDivision" onchange="onNDivisionChange()"><option value="">Pilih divisi tujuan...</option></select></div>
     <div class="field field-row">
       <div><label>Kategori</label><select id="nCategory"></select></div>
       <div><label>Prioritas</label>
@@ -346,6 +349,24 @@
     <h3 id="dTitle"></h3>
     <div id="dBody"></div>
     <div id="dAttachment"></div>
+    <div id="assignSection" style="display:none;margin-top:1rem;border-top:0.5px solid #e8e7e2;padding-top:1rem">
+      <div class="log-title"><i class="ti ti-user-check"></i> Penugasan</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:180px">
+          <label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Assign ke Layer 1 (divisi ini)</label>
+          <select id="assignLayer1" style="width:100%;font-size:13px;padding:7px 10px;border-radius:8px;border:0.5px solid #c8c7be"><option value="">Pilih teknisi...</option></select>
+        </div>
+        <button class="btn-sm btn-sm-blue" style="padding:8px 12px" onclick="assignToLayer1()"><i class="ti ti-user-check"></i> Assign</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+        <div style="flex:1;min-width:180px">
+          <label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Eskalasi / Cross-Assign ke Divisi Lain</label>
+          <select id="assignDivision" style="width:100%;font-size:13px;padding:7px 10px;border-radius:8px;border:0.5px solid #c8c7be"><option value="">Pilih divisi...</option></select>
+        </div>
+        <button class="btn-sm btn-sm-danger" style="padding:8px 12px" onclick="escalateToDivision()"><i class="ti ti-arrow-forward-up"></i> Eskalasi</button>
+      </div>
+      <div id="assignedInfo" style="margin-top:8px;font-size:12px;color:#888780"></div>
+    </div>
     <div class="log-section">
       <div class="log-title"><i class="ti ti-timeline"></i> Activity Log</div>
       <div class="log-list" id="logList"><div class="log-empty">Memuat log...</div></div>
@@ -414,12 +435,27 @@
             <option value="admin">Admin</option>
           </select>
         </div>
+        <div class="field-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Level</label>
+            <select id="auRoleLevel">
+              <option value="">- (tidak ada)</option>
+              <option value="superadmin">Super Admin</option>
+              <option value="spv">SPV</option>
+              <option value="layer1">Layer 1 / Teknisi</option>
+            </select></div>
+          <div><label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Divisi</label>
+            <select id="auDivision"><option value="">- (tidak ada)</option></select></div>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:12px;color:#888780;display:block;margin-bottom:4px">Telegram Chat ID (opsional)</label>
+          <input id="auTelegram" placeholder="Contoh: 123456789 — minta user chat @userinfobot"/>
+        </div>
         <button class="btn-save" id="btnAddUser" onclick="addUser()" style="width:100%">
           <i class="ti ti-plus" style="margin-right:4px"></i>Buat Akun</button>
       </div>
       <div class="table-wrap">
         <table class="user-table">
-          <thead><tr><th>Nama</th><th>Username</th><th>Email</th><th>Role</th><th>Aksi</th></tr></thead>
+          <thead><tr><th>Nama</th><th>Username</th><th>Divisi</th><th>Level</th><th>Role</th><th>Aksi</th></tr></thead>
           <tbody id="userTableBody"></tbody>
         </table>
       </div>
@@ -431,6 +467,7 @@
         <div id="addCatAlert"></div>
         <div style="display:flex;gap:8px;margin-top:8px">
           <input id="newCatName" placeholder="Nama kategori baru..." style="flex:1;font-size:13px;padding:8px 10px;border-radius:8px;border:0.5px solid #c8c7be;outline:none" onkeydown="if(event.key==='Enter')addCategory()"/>
+          <select id="newCatDivision" style="font-size:13px;padding:8px 10px;border-radius:8px;border:0.5px solid #c8c7be"><option value="">Global (semua divisi)</option></select>
           <button class="btn-save" id="btnAddCat" onclick="addCategory()"><i class="ti ti-plus" style="margin-right:4px"></i>Tambah</button>
         </div>
       </div>
@@ -605,6 +642,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const RESEND_KEY = 're_HGJkHtL6_QJffJR5SBtc3jJJ1VSV4mAms';
 const EMAIL_FROM = 'Helpdesk <onboarding@resend.dev>';
 const BUCKET = 'ticket-attachments';
+const TELEGRAM_TOKEN = '8968680864:AAGNJmyeLHnUQzoaawVjmSkzJ6HHZfKEZiA';
 const H = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
 
 async function sb(path,opts={}){
@@ -620,6 +658,26 @@ async function sbUpload(filePath,blob){
   });
   if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||'Upload gagal');}
   return `${SB_URL}/storage/v1/object/public/${BUCKET}/${filePath}`;
+}
+
+async function fetchDivisions(){
+  try{ divisions = await sb('divisions?order=name.asc'); }
+  catch(e){ console.error('Gagal load divisi:', e); divisions=[]; }
+}
+
+// ══════════════════════════════════════════════
+//  TELEGRAM NOTIFICATION
+// ══════════════════════════════════════════════
+async function sendTelegram(chatId, text){
+  if(!chatId) return false;
+  try{
+    const res = await fetch(`${SB_URL}/functions/v1/send-telegram`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
+      body: JSON.stringify({chat_id: chatId, text})
+    });
+    return res.ok;
+  }catch(e){ console.warn('Telegram gagal:', e); return false; }
 }
 
 // ══════════════════════════════════════════════
@@ -722,7 +780,7 @@ function emailTicketResolved(ticket){
 // ══════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════
-let currentUser=null,tickets=[],categories=[],currentTicketId=null,resetTargetId=null,nextNum=1;
+let currentUser=null,tickets=[],categories=[],divisions=[],currentTicketId=null,resetTargetId=null,nextNum=1;
 let pendingFile=null,chartStatus=null,chartCategory=null;
 let editCatId=null;
 let currentPage=1,perPage=20,filteredTickets=[];
@@ -731,6 +789,10 @@ const pad=n=>String(n).padStart(3,'0');
 const isAdmin=()=>currentUser?.role==='admin';
 const isTech=()=>['admin','teknisi'].includes(currentUser?.role);
 const isLoggedIn=()=>currentUser!==null;
+const isSuperAdmin=()=>currentUser?.role_level==='superadmin';
+const isSPV=()=>currentUser?.role_level==='spv';
+const isLayer1=()=>currentUser?.role_level==='layer1';
+const myDivisionName=()=>{const d=divisions.find(x=>x.id===currentUser?.division_id);return d?d.name:'-';};
 
 function showAlert(id,msg,type='error'){
   const el=document.getElementById(id);if(!el)return;
@@ -749,7 +811,7 @@ async function doLogin(){
   const btn=document.getElementById('btnLogin');
   btn.textContent='Masuk...';btn.disabled=true;
   try{
-    const rows=await sb(`users?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=id,username,full_name,role,email`);
+    const rows=await sb(`users?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=id,username,full_name,role,email,role_level,division_id,telegram_chat_id`);
     if(!rows.length){showAlert('loginAlert','Username atau password salah.');return;}
     currentUser=rows[0];
     localStorage.setItem('ticketing_session', JSON.stringify(currentUser));
@@ -773,6 +835,7 @@ function doLogout(){
 //  ENTER DASHBOARD
 // ══════════════════════════════════════════════
 async function enterDashboard(){
+  await fetchDivisions();
   // Role user -> portal pelapor, lainnya -> dashboard penuh
   if(currentUser && currentUser.role==='user'){
     try{
@@ -790,12 +853,20 @@ async function enterDashboard(){
   const chip=document.getElementById('userChip');
   if(currentUser){
     const lbl={admin:'Admin',teknisi:'Teknisi',user:'User'}[currentUser.role]||currentUser.role;
-    chip.innerHTML=`<i class="ti ti-user" style="font-size:14px"></i> ${currentUser.full_name} <span class="role-badge role-${currentUser.role}">${lbl}</span>`;
+    const levelLbl={superadmin:'Super Admin',spv:'SPV',layer1:'Layer 1'}[currentUser.role_level]||'';
+    const divTag = currentUser.division_id ? ` &middot; ${myDivisionName()}` : (isSuperAdmin()?' &middot; Semua Divisi':'');
+    chip.innerHTML=`<i class="ti ti-user" style="font-size:14px"></i> ${currentUser.full_name} <span class="role-badge role-${currentUser.role}">${levelLbl||lbl}</span><span style="font-size:11px;color:#888780">${divTag}</span>`;
   }else{
     chip.innerHTML=`<i class="ti ti-eye" style="font-size:14px"></i> Tamu <span class="role-badge role-publik">View Only</span>`;
   }
   document.getElementById('btnNewTicket').style.display=isLoggedIn()?'flex':'none';
   document.getElementById('btnManageUsers').style.display=isAdmin()?'flex':'none';
+  // Filter divisi hanya untuk superadmin
+  const fDivEl=document.getElementById('fDivision');
+  if(fDivEl){
+    fDivEl.style.display = isSuperAdmin() ? 'inline-block' : 'none';
+    fDivEl.innerHTML='<option value="">Semua divisi</option>'+divisions.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  }
   await fetchCategories();
   await fetchTickets();
 }
@@ -823,13 +894,14 @@ async function fetchCategories(){
 
 async function addCategory(){
   const name=document.getElementById('newCatName').value.trim();
+  const divId=document.getElementById('newCatDivision').value;
   if(!name){showAlert('addCatAlert','Nama kategori wajib diisi.');return;}
   const btn=document.getElementById('btnAddCat');
   btn.textContent='Menambah...';btn.disabled=true;
   try{
     const exist=await sb(`categories?name=eq.${encodeURIComponent(name)}&select=id`);
     if(exist.length){showAlert('addCatAlert','Kategori sudah ada.');return;}
-    await sb('categories',{method:'POST',body:JSON.stringify({name})});
+    await sb('categories',{method:'POST',body:JSON.stringify({name, division_id: divId||null})});
     document.getElementById('newCatName').value='';
     showAlert('addCatAlert',`Kategori "${name}" ditambahkan!`,'success');
     await fetchCategories();renderCatList();
@@ -876,13 +948,18 @@ async function deleteCategory(id,name){
 
 function renderCatList(){
   const el=document.getElementById('catList');if(!el)return;
+  const divSel=document.getElementById('newCatDivision');
+  if(divSel) divSel.innerHTML='<option value="">Global (semua divisi)</option>'+divisions.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
   el.innerHTML=categories.length
-    ?categories.map(c=>`
+    ?categories.map(c=>{
+      const divName=c.division_id?(divisions.find(d=>d.id===c.division_id)||{}).name:'Global';
+      return `
       <div class="cat-item">
         <button class="cat-edit-btn" onclick="openEditCategory('${c.id}','${c.name}')" title="Edit"><i class="ti ti-pencil"></i></button>
-        ${c.name}
+        ${c.name} <span style="font-size:10px;color:#888780">(${divName||'-'})</span>
         <button onclick="deleteCategory('${c.id}','${c.name}')" title="Hapus">×</button>
-      </div>`).join('')
+      </div>`;
+    }).join('')
     :'<span style="font-size:13px;color:#888780">Belum ada kategori.</span>';
 }
 
@@ -897,7 +974,13 @@ function showLoading(){
 async function fetchTickets(){
   showLoading();
   try{
-    tickets=await sb('tickets?order=created_at.desc');
+    let path='tickets?order=created_at.desc';
+    if(isLayer1() && currentUser.id){
+      path=`tickets?assigned_to=eq.${currentUser.id}&order=created_at.desc`;
+    } else if(isSPV() && currentUser.division_id){
+      path=`tickets?or=(division_id.eq.${currentUser.division_id},assigned_division_id.eq.${currentUser.division_id})&order=created_at.desc`;
+    }
+    tickets=await sb(path);
     const nums=tickets.map(t=>parseInt((t.id||'').replace('TKT-',''))).filter(n=>!isNaN(n));
     nextNum=nums.length?Math.max(...nums)+1:1;
     currentPage=1;
@@ -910,7 +993,7 @@ async function fetchTickets(){
 
 function resetFilters(){
   ['q','fDateFrom','fDateTo'].forEach(id=>document.getElementById(id).value='');
-  ['fStatus','fPriority','fCategory'].forEach(id=>document.getElementById(id).selectedIndex=0);
+  ['fStatus','fPriority','fCategory','fDivision'].forEach(id=>{const el=document.getElementById(id);if(el)el.selectedIndex=0;});
   currentPage=1;renderPage();
 }
 
@@ -924,12 +1007,14 @@ function getFiltered(){
   const fs=document.getElementById('fStatus').value;
   const fp=document.getElementById('fPriority').value;
   const fc=document.getElementById('fCategory').value;
+  const fdiv=document.getElementById('fDivision')?document.getElementById('fDivision').value:'';
   const fd1=document.getElementById('fDateFrom').value;
   const fd2=document.getElementById('fDateTo').value;
   return tickets.filter(t=>
     (!q||(t.title||'').toLowerCase().includes(q)||(t.reporter||'').toLowerCase().includes(q)||(t.id||'').toLowerCase().includes(q))&&
     (!fs||t.status===fs)&&(!fp||(t.priority||'').toLowerCase()===fp)&&
-    (!fc||(t.category||'')===fc)&&(!fd1||t.date>=fd1)&&(!fd2||t.date<=fd2)
+    (!fc||(t.category||'')===fc)&&(!fdiv||t.division_id===fdiv)&&
+    (!fd1||t.date>=fd1)&&(!fd2||t.date<=fd2)
   );
 }
 
@@ -1035,7 +1120,19 @@ function openNew(){
     document.getElementById('nReporter').value=currentUser.full_name;
     document.getElementById('nReporterEmail').value=currentUser.email||'';
   }
+  // Isi dropdown divisi
+  const divSel=document.getElementById('nDivision');
+  divSel.innerHTML='<option value="">Pilih divisi tujuan...</option>'+divisions.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  if(currentUser && currentUser.division_id){ divSel.value=currentUser.division_id; }
+  onNDivisionChange();
   document.getElementById('newModal').classList.add('open');
+}
+
+function onNDivisionChange(){
+  const divId=document.getElementById('nDivision').value;
+  const catSel=document.getElementById('nCategory');
+  const filtered=divId?categories.filter(c=>!c.division_id||c.division_id===divId):categories;
+  catSel.innerHTML=filtered.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
 }
 
 // ══════════════════════════════════════════════
@@ -1076,7 +1173,9 @@ async function saveNew(){
   const title=document.getElementById('nTitle').value.trim();
   const reporter=document.getElementById('nReporter').value.trim();
   const reporterEmail=document.getElementById('nReporterEmail').value.trim();
+  const divisionId=document.getElementById('nDivision').value;
   if(!title||!reporter){alert('Judul dan pelapor wajib diisi.');return;}
+  if(!divisionId){alert('Tujuan divisi wajib dipilih.');return;}
   const btn=document.getElementById('btnSaveNew');
   btn.textContent='Menyimpan...';btn.disabled=true;
   const today=new Date().toISOString().slice(0,10);
@@ -1094,7 +1193,7 @@ async function saveNew(){
       end_date:['resolved','closed'].includes(status)?today:'-',
       priority:document.getElementById('nPriority').value,
       status,category:document.getElementById('nCategory').value||'Umum',
-      attachment_url
+      attachment_url, division_id:divisionId
     };
     await sb('tickets',{method:'POST',body:JSON.stringify(t)});
     await addLog(t.id,`Tiket dibuat oleh ${currentUser.full_name}.`,'system');
@@ -1105,6 +1204,17 @@ async function saveNew(){
       const sent=await emailTicketCreated(t);
       console.log(sent?'Email terkirim':'Email gagal');
     }
+
+    // Kirim Telegram ke SPV divisi tujuan
+    try{
+      const spvRows=await sb(`users?division_id=eq.${divisionId}&role_level=eq.spv&select=telegram_chat_id&telegram_chat_id=not.is.null`);
+      const divName=(divisions.find(d=>d.id===divisionId)||{}).name||'-';
+      for(const spv of spvRows){
+        if(spv.telegram_chat_id){
+          await sendTelegram(spv.telegram_chat_id, `🎫 <b>Tiket Baru Masuk</b>\nDivisi: ${divName}\nNo: ${t.id}\nJudul: ${t.title}\nPelapor: ${t.reporter}\nPrioritas: ${t.priority}`);
+        }
+      }
+    }catch(e){ console.warn('Telegram SPV gagal:', e); }
 
     closeModal('newModal');
     ['nTitle','nDesc','nReporter','nReporterEmail'].forEach(id=>document.getElementById(id).value='');
@@ -1120,9 +1230,11 @@ async function saveNew(){
 async function openDetail(id){
   const t=tickets.find(x=>x.id===id);if(!t)return;
   currentTicketId=id;
+  const divName=(divisions.find(d=>d.id===t.division_id)||{}).name||'-';
   document.getElementById('dTitle').textContent=t.title;
   document.getElementById('dBody').innerHTML=`
     <div class="detail-row"><span>No Tiket</span><span class="ticket-id">${t.id}</span></div>
+    <div class="detail-row"><span>Divisi</span><span class="cat-badge">${divName}</span></div>
     <div class="detail-row"><span>Kategori</span><span class="cat-badge">${t.category||'-'}</span></div>
     <div class="detail-row"><span>Deskripsi</span><span style="max-width:60%;text-align:right">${t.desc||'-'}</span></div>
     <div class="detail-row"><span>Pelapor</span><span>${t.reporter}</span></div>
@@ -1142,8 +1254,64 @@ async function openDetail(id){
   await fetchCategories();
   document.getElementById('dCategory').value=t.category||'';
   document.getElementById('logMsg').value='';
+
+  // Panel assign - hanya untuk SPV/Super Admin
+  const assignSec=document.getElementById('assignSection');
+  if((isSPV()||isSuperAdmin()) && t.division_id){
+    assignSec.style.display='block';
+    try{
+      const layer1s=await sb(`users?division_id=eq.${t.division_id}&role_level=eq.layer1&select=id,full_name`);
+      document.getElementById('assignLayer1').innerHTML='<option value="">Pilih teknisi...</option>'+layer1s.map(u=>`<option value="${u.id}" ${t.assigned_to===u.id?'selected':''}>${u.full_name}</option>`).join('');
+    }catch(e){}
+    document.getElementById('assignDivision').innerHTML='<option value="">Pilih divisi...</option>'+divisions.filter(d=>d.id!==t.division_id).map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    document.getElementById('assignedInfo').innerHTML = t.assigned_to_name
+      ? `<i class="ti ti-user-check" style="color:#3B6D11"></i> Sedang ditugaskan ke: <strong>${t.assigned_to_name}</strong>`
+      : (t.is_cross_division ? `<i class="ti ti-arrow-forward-up" style="color:#993C1D"></i> Dieskalasi ke divisi lain` : '');
+  } else {
+    assignSec.style.display='none';
+  }
+
   document.getElementById('detailModal').classList.add('open');
   await fetchLogs(id);
+}
+
+async function assignToLayer1(){
+  const uid=document.getElementById('assignLayer1').value;
+  if(!uid){alert('Pilih teknisi terlebih dahulu.');return;}
+  const t=tickets.find(x=>x.id===currentTicketId);
+  if(!t)return;
+  try{
+    const rows=await sb(`users?id=eq.${uid}&select=full_name,telegram_chat_id`);
+    const target=rows[0];
+    await sb(`tickets?id=eq.${encodeURIComponent(currentTicketId)}`,{method:'PATCH',body:JSON.stringify({assigned_to:uid, assigned_to_name:target.full_name})});
+    await addLog(currentTicketId, `Ditugaskan ke ${target.full_name} oleh ${currentUser.full_name}.`, currentUser.role_level==='superadmin'?'admin':'teknisi');
+    if(target.telegram_chat_id){
+      await sendTelegram(target.telegram_chat_id, `📌 <b>Tiket Ditugaskan Kepada Anda</b>\nNo: ${t.id}\nJudul: ${t.title}\nPrioritas: ${t.priority}`);
+    }
+    await fetchTickets();
+    await openDetail(currentTicketId);
+  }catch(e){alert('Gagal assign: '+e.message);}
+}
+
+async function escalateToDivision(){
+  const divId=document.getElementById('assignDivision').value;
+  if(!divId){alert('Pilih divisi tujuan terlebih dahulu.');return;}
+  const t=tickets.find(x=>x.id===currentTicketId);
+  if(!t)return;
+  const divName=(divisions.find(d=>d.id===divId)||{}).name||'-';
+  if(!confirm(`Eskalasi tiket ini ke divisi ${divName}?`))return;
+  try{
+    await sb(`tickets?id=eq.${encodeURIComponent(currentTicketId)}`,{method:'PATCH',body:JSON.stringify({assigned_division_id:divId, is_cross_division:true, assigned_to:null, assigned_to_name:null})});
+    await addLog(currentTicketId, `Dieskalasi ke divisi ${divName} oleh ${currentUser.full_name}.`, currentUser.role_level==='superadmin'?'admin':'teknisi');
+    try{
+      const spvRows=await sb(`users?division_id=eq.${divId}&role_level=eq.spv&select=telegram_chat_id`);
+      for(const spv of spvRows){
+        if(spv.telegram_chat_id) await sendTelegram(spv.telegram_chat_id, `↪️ <b>Tiket Eskalasi Masuk</b>\nNo: ${t.id}\nJudul: ${t.title}\nDari divisi lain, mohon ditindaklanjuti.`);
+      }
+    }catch(e){}
+    await fetchTickets();
+    await openDetail(currentTicketId);
+  }catch(e){alert('Gagal eskalasi: '+e.message);}
 }
 
 function viewImg(url){document.getElementById('imgFull').src=url;document.getElementById('imgModal').classList.add('open');}
@@ -1249,8 +1417,11 @@ function switchSettingTab(tabId,btnEl){
 
 async function openUserManagement(){
   clearAlert('addUserAlert');
-  ['auName','auUsername','auEmail','auPassword'].forEach(id=>document.getElementById(id).value='');
+  ['auName','auUsername','auEmail','auPassword','auTelegram'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('auRole').value='user';
+  document.getElementById('auRoleLevel').value='';
+  const divSel=document.getElementById('auDivision');
+  divSel.innerHTML='<option value="">- (tidak ada)</option>'+divisions.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
   // Reset tab
   document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
@@ -1261,16 +1432,20 @@ async function openUserManagement(){
 }
 
 async function loadUserTable(){
-  document.getElementById('userTableBody').innerHTML='<tr><td colspan="5" class="empty" style="padding:1rem">Memuat...</td></tr>';
+  document.getElementById('userTableBody').innerHTML='<tr><td colspan="6" class="empty" style="padding:1rem">Memuat...</td></tr>';
   try{
-    const users=await sb('users?select=id,username,full_name,role,email&order=created_at.asc');
-    if(!users.length){document.getElementById('userTableBody').innerHTML='<tr><td colspan="5" class="empty" style="padding:1rem">Tidak ada user.</td></tr>';return;}
+    const users=await sb('users?select=id,username,full_name,role,email,role_level,division_id&order=created_at.asc');
+    if(!users.length){document.getElementById('userTableBody').innerHTML='<tr><td colspan="6" class="empty" style="padding:1rem">Tidak ada user.</td></tr>';return;}
     const rl={admin:'Admin',teknisi:'Teknisi',user:'User'};
-    document.getElementById('userTableBody').innerHTML=users.map(u=>`
+    const lvlLbl={superadmin:'Super Admin',spv:'SPV',layer1:'Layer 1'};
+    document.getElementById('userTableBody').innerHTML=users.map(u=>{
+      const divName=(divisions.find(d=>d.id===u.division_id)||{}).name||'-';
+      return `
       <tr>
         <td>${u.full_name||'-'}</td>
         <td><span class="ticket-id" style="font-size:12px">${u.username}</span></td>
-        <td style="font-size:12px;color:#888780">${u.email||'-'}</td>
+        <td style="font-size:12px;color:#888780">${divName}</td>
+        <td style="font-size:12px">${lvlLbl[u.role_level]||'-'}</td>
         <td>${u.id===currentUser.id
           ?`<span class="role-badge role-${u.role}">${rl[u.role]||u.role}</span>`
           :`<select onchange="changeRole('${u.id}',this.value)" style="font-size:12px;padding:4px 8px;border-radius:6px;border:0.5px solid #c8c7be">
@@ -1282,8 +1457,9 @@ async function loadUserTable(){
           <button class="btn-sm btn-sm-blue" onclick="openReset('${u.id}','${u.full_name||u.username}')"><i class="ti ti-key"></i> Reset PW</button>
           ${u.id!==currentUser.id?`<button class="btn-sm btn-sm-danger" onclick="deleteUser('${u.id}','${u.username}')"><i class="ti ti-trash"></i> Hapus</button>`:''}
         </div></td>
-      </tr>`).join('');
-  }catch(e){document.getElementById('userTableBody').innerHTML=`<tr><td colspan="5" class="empty" style="padding:1rem">Error: ${e.message}</td></tr>`;}
+      </tr>`;
+    }).join('');
+  }catch(e){document.getElementById('userTableBody').innerHTML=`<tr><td colspan="6" class="empty" style="padding:1rem">Error: ${e.message}</td></tr>`;}
 }
 
 async function addUser(){
@@ -1292,6 +1468,9 @@ async function addUser(){
   const email=document.getElementById('auEmail').value.trim();
   const password=document.getElementById('auPassword').value;
   const role=document.getElementById('auRole').value;
+  const roleLevel=document.getElementById('auRoleLevel').value;
+  const divisionId=document.getElementById('auDivision').value;
+  const telegram=document.getElementById('auTelegram').value.trim();
   if(!name||!username||!password){showAlert('addUserAlert','Nama, username, dan password wajib diisi.');return;}
   if(password.length<6){showAlert('addUserAlert','Password minimal 6 karakter.');return;}
   const btn=document.getElementById('btnAddUser');
@@ -1299,9 +1478,13 @@ async function addUser(){
   try{
     const exist=await sb(`users?username=eq.${encodeURIComponent(username)}&select=id`);
     if(exist.length){showAlert('addUserAlert','Username sudah dipakai.');return;}
-    await sb('users',{method:'POST',body:JSON.stringify({username,password,full_name:name,role,email:email||null})});
+    await sb('users',{method:'POST',body:JSON.stringify({
+      username,password,full_name:name,role,email:email||null,
+      role_level:roleLevel||null, division_id:divisionId||null,
+      telegram_chat_id:telegram||null
+    })});
     showAlert('addUserAlert',`Akun "${username}" berhasil dibuat!`,'success');
-    ['auName','auUsername','auEmail','auPassword'].forEach(id=>document.getElementById(id).value='');
+    ['auName','auUsername','auEmail','auPassword','auTelegram'].forEach(id=>document.getElementById(id).value='');
     await loadUserTable();
   }catch(e){showAlert('addUserAlert','Error: '+e.message);}
   finally{btn.innerHTML='<i class="ti ti-plus" style="margin-right:4px"></i>Buat Akun';btn.disabled=false;}
@@ -1662,7 +1845,7 @@ async function reopenTicket(ticketId){
     if(saved){
       currentUser = JSON.parse(saved);
       // Verifikasi user masih ada di database
-      const rows = await sb(`users?id=eq.${currentUser.id}&select=id,username,full_name,role,email`);
+      const rows = await sb(`users?id=eq.${currentUser.id}&select=id,username,full_name,role,email,role_level,division_id,telegram_chat_id`);
       if(rows.length){
         currentUser = rows[0];
         localStorage.setItem('ticketing_session', JSON.stringify(currentUser));
